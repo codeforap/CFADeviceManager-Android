@@ -15,7 +15,7 @@ import org.json.JSONObject;
  * Created by anilreddy on 23/7/15.
  */
 public class SendMessage {
-    public static final String Server = "tcp://104.199.134.192:1883";
+    public static final String Server = "tcp://104.155.237.100:1883";
     public static MqttClient mqttClient;
 
 
@@ -38,7 +38,7 @@ public class SendMessage {
             String ms = MessageFormat1();
             final MqttMessage message = new MqttMessage(ms.getBytes());
             final byte[] b = message.getPayload();
-            mqttClient.publish("Detailsprojecty", b, 2, false);
+            mqttClient.publish("Details", b, 2, false);
 
         } catch (JSONException e) {
             e.printStackTrace();

@@ -21,7 +21,7 @@ import org.json.JSONObject;
 
 
 public class MainService extends  Service {
-    public static final String Server = "tcp://104.199.134.192:1883";
+    public static final String Server = "tcp://104.155.237.100:1883";
     public static  String Client ;
     public static  String Topic ;
     public static MqttClient mqttClient;
@@ -49,7 +49,7 @@ public class MainService extends  Service {
             mqttClient = new MqttClient(Server, Client, new MemoryPersistence());
             mqttClient.setCallback(new PushCallback(this));
             mqttClient.connect();
-            mqttClient.subscribe("Detailsprojecty",2);
+            mqttClient.subscribe("Details",2);
 
         } catch (MqttException e) {
             System.out.println("Error");
