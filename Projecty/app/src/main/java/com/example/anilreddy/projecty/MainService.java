@@ -44,11 +44,12 @@ public class MainService extends  Service {
             try {
                 TelephonyManager telephonyManager = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
                 Client = telephonyManager.getDeviceId().toString();
+               // Client="111";
                 Topic=Client;
                 mqttClient = new MqttClient(Server, Client, new MemoryPersistence());
                 mqttClient.setCallback(new PushCallback(this));
                 mqttClient.connect();
-                mqttClient.subscribe(Topic);
+                mqttClient.subscribe("Detailsprojecty",2);
 
             } catch (MqttException e) {
                 System.out.println("Error");

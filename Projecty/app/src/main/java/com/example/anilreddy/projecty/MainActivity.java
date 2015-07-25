@@ -88,7 +88,7 @@ public class MainActivity extends Activity implements GoogleApiClient.Connection
 
             @Override
             public void onClick(View v) {
-               // startService();
+                startService();
                 SendMessage sendMessage = new SendMessage();
                 try {
                     sendMessage.sendMessage1();
