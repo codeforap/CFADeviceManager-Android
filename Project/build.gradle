@@ -3,7 +3,6 @@
 buildscript {
     repositories {
         jcenter()
-        maven { url 'https://repo.eclipse.org/content/repositories/paho-releases/' }
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:1.2.3'
@@ -16,6 +15,5 @@ buildscript {
 allprojects {
     repositories {
         jcenter()
-        maven { url 'https://repo.eclipse.org/content/repositories/paho-releases/' }
     }
 }
