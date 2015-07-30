@@ -5,11 +5,14 @@ package com.cfap.cfadevicemanager;
  */
 
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.location.Location;
 import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.BatteryManager;
 import android.os.Build;
@@ -34,6 +37,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 
 
@@ -55,12 +59,14 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
     private String KEY_Version = "version";
     private String KEY_Location = "locationlatlong";
     private String KEY_LocTime = "lastloctime";
+    private String KEY_Status = "connStatus";
     private String Server = "tcp://104.155.237.100:1883";
     public static final String BROADCAST_ACTION = "com.cfap.cfadevicemanager.CFAService";
     GlobalState gs;
     private final Handler handler = new Handler();
     Intent intent;
     int counter = 0;
+    NetworkStateReceiver mConnReceiver;
 
     private MqttClient mqttClient;
     GoogleApiClient mGoogleApiClient;
@@ -72,6 +78,8 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
     private long FASTEST_INTERVAL = 150000;
     private String currLocation; // string version of curr location or last known location
     private String lastLocTime; // time of curr location or last known location
+ //   private String connStatus="unknown"; // used to store if device is online or offline
+    private String statusTime; //used to store the time at which device is online or offline
     private String jsonStr;
 
     @Override
@@ -80,6 +88,8 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
         super.onCreate();
         gs = (GlobalState) getApplication();
         intent = new Intent(BROADCAST_ACTION);
+        mConnReceiver = new NetworkStateReceiver();
+        registerReceivers();
         buildGoogleApiClient();
         if(mGoogleApiClient!= null){
             mGoogleApiClient.connect();
@@ -90,28 +100,50 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
         mLocationRequest.setInterval(UPDATE_INTERVAL);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
-        sendData = new SendTask();
-        sendData.execute();
+        handler.removeCallbacks(executeTask);
+        handler.postDelayed(executeTask, 30000); // 30 seconds
+      //  sendData = new SendTask();
+      //  sendData.execute();
+    }
+
+    private void registerReceivers() {
+        registerReceiver(mConnReceiver,
+                new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.e(TAG, "in onStartCommand");
         gs = (GlobalState) getApplication();
-        handler.removeCallbacks(sendUpdatesToUI);
-        handler.postDelayed(sendUpdatesToUI, 30000); // 30 seconds
         return START_STICKY;
     }
 
     private Runnable sendUpdatesToUI = new Runnable() {
         public void run() {
             DisplayLoggingInfo();
-            handler.postDelayed(this, 5000); // 5 seconds
+           // handler.postDelayed(this, 5000); // 5 seconds
+        }
+    };
+
+    private Runnable executeTask = new Runnable() {
+        @Override
+        public void run() {
+            mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
+                    mGoogleApiClient);
+            if (mLastLocation != null) {
+                setCurrLocation("lat "+String.valueOf(mLastLocation.getLatitude()) + " long " + String.valueOf(mLastLocation.getLongitude()));
+                Long time = mLastLocation.getTime();
+                setLastLocTime(time);
+                Log.e(TAG, currLocation+" "+getLastLocTime());
+            }
+            sendData = new SendTask();
+            sendData.execute();
+            handler.postDelayed(this, (60000)*20); // 20 minutes
         }
     };
 
     private void DisplayLoggingInfo() {
-        Log.d(TAG, "entered DisplayLoggingInfo");
+        Log.e(TAG, "entered DisplayLoggingInfo");
 
         intent.putExtra("jstring", jsonStr);
         sendBroadcast(intent);
@@ -124,8 +156,15 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
     }
 
     @Override
+    public void onRebind(Intent intent) {
+        super.onRebind(intent);
+        registerReceivers();
+    }
+
+    @Override
     public void onDestroy() {
         Log.e(TAG, "in onDestroy");
+        if(mConnReceiver!=null)  unregisterReceiver(mConnReceiver);
         super.onDestroy();
     }
 
@@ -170,8 +209,16 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
             setLastLocTime(mLastLocation.getTime());
             Log.e(TAG, "currLocation changed: "+currLocation+" "+getLastLocTime());
         }
+        sendData = new SendTask();
         sendData.execute();
     }
+
+  /*  private void setConnStatus(String s){
+        connStatus = s;
+    }
+    private String getConnStatus(){
+        return connStatus;
+    } */
 
     private void setCurrLocation(String loc){
         currLocation = loc;
@@ -268,6 +315,7 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
                 json.put(KEY_Model, getDeviceModel());
                 json.put(KEY_Version, getAndroidVersion());
                 json.put(KEY_Battery, getBatteryStatus());
+                json.put(KEY_Status, gs.getConnStatus());
             } catch (JSONException e) {
                 e.printStackTrace();
             }
@@ -288,7 +336,9 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
 
         @Override
         protected void onPostExecute(String s) {
-
+           // handler.removeCallbacks(sendUpdatesToUI);
+            handler.post(sendUpdatesToUI);
         }
     }
+
 }

@@ -13,12 +13,20 @@ import android.app.Application;
 public class GlobalState extends Application{
 
     private String jStr = "";
+    private String connStatus="";
 
     public void setJStr(String js){
         jStr = js;
     }
     public String getjStr(){
         return jStr;
+    }
+
+    public void setConnStatus(String s){
+        connStatus = s;
+    }
+    public String getConnStatus(){
+        return connStatus;
     }
 
 }

@@ -35,9 +35,9 @@ public class MainActivity extends Activity {
         gs = (GlobalState) getApplication();
 
         maintv = (TextView) findViewById(R.id.maintv);
-        String display = "DETAILS: \n\n";
+        String display = "DETAILS: \n\nFetching Data...";
         maintv.setText(display+" "+gs.getjStr());
-        maintv.setTextSize(30);
+        maintv.setTextSize(20);
 
         // we only start service if it is already not running
        if(isMyServiceRunning(CFAService.class)==false){
