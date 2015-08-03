@@ -74,13 +74,14 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
     LocationRequest mLocationRequest;
     SendTask sendData;
 
-    private long UPDATE_INTERVAL = 300000; // updates location every 30 mins
+    private long UPDATE_INTERVAL = 200000; // updates location every 20 mins
     private long FASTEST_INTERVAL = 150000;
     private String currLocation; // string version of curr location or last known location
     private String lastLocTime; // time of curr location or last known location
  //   private String connStatus="unknown"; // used to store if device is online or offline
     private String statusTime; //used to store the time at which device is online or offline
     private String jsonStr;
+    private String clientID;
 
     @Override
     public void onCreate() {
@@ -302,7 +303,11 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
         @Override
         protected String doInBackground(String... params) {
             try {
-                mqttClient = new MqttClient(Server, "123", new MemoryPersistence());
+                SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
+                String connTime = formatter.format(new Date());
+                clientID = getDeviceImei()+" "+connTime;
+                mqttClient = new MqttClient(Server, clientID, new MemoryPersistence());
+                Log.e(TAG, "clientID: "+clientID);
                 mqttClient.connect();
             } catch (MqttException e) {
                 e.printStackTrace();
