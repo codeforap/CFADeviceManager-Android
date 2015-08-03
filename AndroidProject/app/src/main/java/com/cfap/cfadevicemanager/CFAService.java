@@ -72,7 +72,8 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
     GoogleApiClient mGoogleApiClient;
     Location mLastLocation;
     LocationRequest mLocationRequest;
-    SendTask sendData;
+    SendTask sendAll;
+    RegularTask sendData;
 
     private long UPDATE_INTERVAL = 200000; // updates location every 20 mins
     private long FASTEST_INTERVAL = 150000;
@@ -101,6 +102,8 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
         mLocationRequest.setInterval(UPDATE_INTERVAL);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
+        sendAll = new SendTask();
+        sendAll.execute();
         handler.removeCallbacks(executeTask);
         handler.postDelayed(executeTask, 30000); // 30 seconds
       //  sendData = new SendTask();
@@ -137,7 +140,7 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
                 setLastLocTime(time);
                 Log.e(TAG, currLocation+" "+getLastLocTime());
             }
-            sendData = new SendTask();
+            sendData = new RegularTask();
             sendData.execute();
             handler.postDelayed(this, (60000)*20); // 20 minutes
         }
@@ -210,7 +213,7 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
             setLastLocTime(mLastLocation.getTime());
             Log.e(TAG, "currLocation changed: "+currLocation+" "+getLastLocTime());
         }
-        sendData = new SendTask();
+        sendData = new RegularTask();
         sendData.execute();
     }
 
@@ -290,7 +293,8 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
     }
 
     /** We run all the connections code in an async task so that we do not block the main/UI thread. everything runs
-     *on a separate background thread here. We connect to the server using mqttclient and publish data in a json format.
+     *on a separate background thread here. We connect to the server using mqttclient and publish complete data in a json format.
+     * This task runs when we first create the service. Only once!
      * */
     private class SendTask extends AsyncTask<String, String, String>{
 
@@ -307,7 +311,7 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
                 String connTime = formatter.format(new Date());
                 clientID = getDeviceImei()+" "+connTime;
                 mqttClient = new MqttClient(Server, clientID, new MemoryPersistence());
-                Log.e(TAG, "clientID: "+clientID);
+                Log.e(TAG, "senTask clientID: "+clientID);
                 mqttClient.connect();
             } catch (MqttException e) {
                 e.printStackTrace();
@@ -334,6 +338,64 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
             }
             Log.e(TAG, "sendTask: locationStr: "+getCurrLocation());
             Log.e(TAG, "sendTask: json String: "+jString);
+            jsonStr = jString;
+            gs.setJStr(jString);
+            return jString;
+        }
+
+        @Override
+        protected void onPostExecute(String s) {
+            // handler.removeCallbacks(sendUpdatesToUI);
+            handler.post(sendUpdatesToUI);
+        }
+    }
+
+    /** We run all the connections code in an async task so that we do not block the main/UI thread. everything runs
+     *on a separate background thread here. We connect to the server using mqttclient and publish locatin & status data in a json format.
+     * This task runs every 20 mins or when we change the location.
+     * */
+    private class RegularTask extends AsyncTask<String, String, String>{
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+
+        }
+
+        @Override
+        protected String doInBackground(String... params) {
+            try {
+                SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
+                String connTime = formatter.format(new Date());
+                clientID = getDeviceImei()+" "+connTime;
+                mqttClient = new MqttClient(Server, clientID, new MemoryPersistence());
+                Log.e(TAG, "RegularTask clientID: "+clientID);
+                mqttClient.connect();
+            } catch (MqttException e) {
+                e.printStackTrace();
+            }
+            JSONObject json = new JSONObject();
+            try {
+                json.put(KEY_Location, getCurrLocation());
+                json.put(KEY_LocTime, getLastLocTime());
+             //   json.put(KEY_IMEI, getDeviceImei());
+            //    json.put(KEY_Model, getDeviceModel());
+            //    json.put(KEY_Version, getAndroidVersion());
+                json.put(KEY_Battery, getBatteryStatus());
+                json.put(KEY_Status, gs.getConnStatus());
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            String jString = json.toString();
+            try {
+                final MqttMessage message = new MqttMessage(jString.getBytes());
+                final byte[] b = message.getPayload();
+                mqttClient.publish("Details", b, 2, false);
+            } catch (MqttException e) {
+                e.printStackTrace();
+            }
+            Log.e(TAG, "RegularTask: locationStr: "+getCurrLocation());
+            Log.e(TAG, "RegularTask: json String: "+jString);
             jsonStr = jString;
             gs.setJStr(jString);
             return jString;
