@@ -33,6 +33,7 @@ import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -57,8 +58,8 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
     private String KEY_Battery = "battery";
     private String KEY_Model = "model";
     private String KEY_Version = "version";
-    private String KEY_Location = "locationlatlong";
-    private String KEY_LocTime = "lastloctime";
+    private String KEY_Location = "location";
+  //  private String KEY_LocTime = "lastloctime";
     private String KEY_Status = "connStatus";
     private String Server = "tcp://104.155.237.100:1883";
     public static final String BROADCAST_ACTION = "com.cfap.cfadevicemanager.CFAService";
@@ -135,7 +136,7 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
             mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
                     mGoogleApiClient);
             if (mLastLocation != null) {
-                setCurrLocation("lat "+String.valueOf(mLastLocation.getLatitude()) + " long " + String.valueOf(mLastLocation.getLongitude()));
+                setCurrLocation(String.valueOf(mLastLocation.getLatitude()) + ", " + String.valueOf(mLastLocation.getLongitude()));
                 Long time = mLastLocation.getTime();
                 setLastLocTime(time);
                 Log.e(TAG, currLocation+" "+getLastLocTime());
@@ -178,7 +179,7 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
         mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
                 mGoogleApiClient);
         if (mLastLocation != null) {
-            setCurrLocation("lat "+String.valueOf(mLastLocation.getLatitude()) + " long " + String.valueOf(mLastLocation.getLongitude()));
+            setCurrLocation(String.valueOf(mLastLocation.getLatitude()) + ", " + String.valueOf(mLastLocation.getLongitude()));
             Long time = mLastLocation.getTime();
             setLastLocTime(time);
             Log.e(TAG, currLocation+" "+getLastLocTime());
@@ -209,7 +210,7 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
     public void onLocationChanged(Location location) {
         mLastLocation = location;
         if (mLastLocation != null) {
-           setCurrLocation("lat "+String.valueOf(mLastLocation.getLatitude())+" long "+String.valueOf(mLastLocation.getLongitude()));
+           setCurrLocation(String.valueOf(mLastLocation.getLatitude())+", "+String.valueOf(mLastLocation.getLongitude()));
             setLastLocTime(mLastLocation.getTime());
             Log.e(TAG, "currLocation changed: "+currLocation+" "+getLastLocTime());
         }
@@ -311,19 +312,30 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
                 String connTime = formatter.format(new Date());
                 clientID = getDeviceImei()+" "+connTime;
                 mqttClient = new MqttClient(Server, clientID, new MemoryPersistence());
-                Log.e(TAG, "senTask clientID: "+clientID);
+                Log.e(TAG, "sendTask clientID: "+clientID);
                 mqttClient.connect();
             } catch (MqttException e) {
                 e.printStackTrace();
             }
             JSONObject json = new JSONObject();
+            JSONArray jArray = new JSONArray();
+            JSONArray batteryArray = new JSONArray();
             try {
-                json.put(KEY_Location, getCurrLocation());
-                json.put(KEY_LocTime, getLastLocTime());
                 json.put(KEY_IMEI, getDeviceImei());
                 json.put(KEY_Model, getDeviceModel());
                 json.put(KEY_Version, getAndroidVersion());
-                json.put(KEY_Battery, getBatteryStatus());
+                Log.e(TAG, "sendTask currLoc: "+getCurrLocation());
+                jArray.put(getCurrLocation().substring(0, nthOccurrence(getCurrLocation(), ',', 0)));
+                jArray.put(getCurrLocation().substring(nthOccurrence(getCurrLocation(), ',', 0) + 2));
+                jArray.put(getLastLocTime());
+                json.put(KEY_Location, jArray);
+          //      json.put(KEY_LocTime, getLastLocTime());
+              //  json.put(KEY_Battery, getBatteryStatus());
+                batteryArray.put(getBatteryStatus().substring(0, nthOccurrence(getBatteryStatus(), '%', 0)));
+                batteryArray.put(getBatteryStatus().substring(nthOccurrence(getBatteryStatus(), '%', 0) + 1, nthOccurrence(getBatteryStatus(), ' ', 2)));
+                batteryArray.put(getBatteryStatus().substring(nthOccurrence(getBatteryStatus(), ' ', 2)+1, nthOccurrence(getBatteryStatus(), ' ', 5)));
+                batteryArray.put(getBatteryStatus().substring(nthOccurrence(getBatteryStatus(), ' ', 5)+1));
+                json.put(KEY_Battery, batteryArray);
                 json.put(KEY_Status, gs.getConnStatus());
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -375,13 +387,22 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
                 e.printStackTrace();
             }
             JSONObject json = new JSONObject();
+            JSONArray jArray = new JSONArray();
+            JSONArray batteryArray = new JSONArray();
             try {
-                json.put(KEY_Location, getCurrLocation());
-                json.put(KEY_LocTime, getLastLocTime());
-             //   json.put(KEY_IMEI, getDeviceImei());
-            //    json.put(KEY_Model, getDeviceModel());
-            //    json.put(KEY_Version, getAndroidVersion());
-                json.put(KEY_Battery, getBatteryStatus());
+                json.put(KEY_IMEI, getDeviceImei());
+              //  json.put(KEY_Location, getCurrLocation());
+              //  json.put(KEY_LocTime, getLastLocTime());
+                jArray.put(getCurrLocation().substring(0, nthOccurrence(getCurrLocation(), ',', 0)));
+                jArray.put(getCurrLocation().substring(nthOccurrence(getCurrLocation(), ',', 0) + 2));
+                jArray.put(getLastLocTime());
+                json.put(KEY_Location, jArray);
+              //  json.put(KEY_Battery, getBatteryStatus());
+                batteryArray.put(getBatteryStatus().substring(0, nthOccurrence(getBatteryStatus(), '%', 0)));
+                batteryArray.put(getBatteryStatus().substring(nthOccurrence(getBatteryStatus(), '%', 0) + 1, nthOccurrence(getBatteryStatus(), ' ', 2)));
+                batteryArray.put(getBatteryStatus().substring(nthOccurrence(getBatteryStatus(), ' ', 2)+1, nthOccurrence(getBatteryStatus(), ' ', 5)));
+                batteryArray.put(getBatteryStatus().substring(nthOccurrence(getBatteryStatus(), ' ', 5)+1));
+                json.put(KEY_Battery, batteryArray);
                 json.put(KEY_Status, gs.getConnStatus());
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -406,6 +427,13 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
            // handler.removeCallbacks(sendUpdatesToUI);
             handler.post(sendUpdatesToUI);
         }
+    }
+
+    public static int nthOccurrence(String str, char c, int n) {
+        int pos = str.indexOf(c, 0);
+        while (n-- > 0 && pos != -1)
+            pos = str.indexOf(c, pos+1);
+        return pos;
     }
 
 }
