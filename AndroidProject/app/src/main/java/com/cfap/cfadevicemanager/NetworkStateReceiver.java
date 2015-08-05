@@ -30,16 +30,16 @@ public class NetworkStateReceiver extends BroadcastReceiver {
             NetworkInfo ni=(NetworkInfo) intent.getExtras().get(ConnectivityManager.EXTRA_NETWORK_INFO);
             if(ni!=null && ni.getState()==NetworkInfo.State.CONNECTED) {
                 Log.e(TAG,"Network "+ni.getTypeName()+" connected");
-                SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
-                String connTime = formatter.format(new Date());
-                gs.setConnStatus("true at "+connTime);
+           //     SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
+            //    String connTime = formatter.format(new Date());
+                gs.setConnStatus("true");
             }
         }
         if(intent.getExtras().getBoolean(ConnectivityManager.EXTRA_NO_CONNECTIVITY,Boolean.FALSE)) {
             Log.d(TAG, "There's no network connectivity");
-            SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
-            String connTime = formatter.format(new Date());
-            gs.setConnStatus("false at "+connTime);
+        //    SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
+        //    String connTime = formatter.format(new Date());
+            gs.setConnStatus("false");
         }
     }
 }

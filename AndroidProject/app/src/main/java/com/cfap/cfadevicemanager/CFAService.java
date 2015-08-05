@@ -307,9 +307,10 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
 
         @Override
         protected String doInBackground(String... params) {
+            String connTime = "";
             try {
                 SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
-                String connTime = formatter.format(new Date());
+                connTime = formatter.format(new Date());
                 clientID = getDeviceImei()+" "+connTime;
                 mqttClient = new MqttClient(Server, clientID, new MemoryPersistence());
                 Log.e(TAG, "sendTask clientID: "+clientID);
@@ -336,7 +337,7 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
                 batteryArray.put(getBatteryStatus().substring(nthOccurrence(getBatteryStatus(), ' ', 2)+1, nthOccurrence(getBatteryStatus(), ' ', 5)));
                 batteryArray.put(getBatteryStatus().substring(nthOccurrence(getBatteryStatus(), ' ', 5)+1));
                 json.put(KEY_Battery, batteryArray);
-                json.put(KEY_Status, gs.getConnStatus());
+                json.put(KEY_Status, gs.getConnStatus()+" "+connTime);
             } catch (JSONException e) {
                 e.printStackTrace();
             }
@@ -376,9 +377,10 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
 
         @Override
         protected String doInBackground(String... params) {
+            String connTime = "";
             try {
                 SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
-                String connTime = formatter.format(new Date());
+                connTime = formatter.format(new Date());
                 clientID = getDeviceImei()+" "+connTime;
                 mqttClient = new MqttClient(Server, clientID, new MemoryPersistence());
                 Log.e(TAG, "RegularTask clientID: "+clientID);
@@ -403,7 +405,7 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
                 batteryArray.put(getBatteryStatus().substring(nthOccurrence(getBatteryStatus(), ' ', 2)+1, nthOccurrence(getBatteryStatus(), ' ', 5)));
                 batteryArray.put(getBatteryStatus().substring(nthOccurrence(getBatteryStatus(), ' ', 5)+1));
                 json.put(KEY_Battery, batteryArray);
-                json.put(KEY_Status, gs.getConnStatus());
+                json.put(KEY_Status, gs.getConnStatus()+" "+connTime);
             } catch (JSONException e) {
                 e.printStackTrace();
             }
