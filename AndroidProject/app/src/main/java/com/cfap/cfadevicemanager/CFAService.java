@@ -37,9 +37,12 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.TimeZone;
 
 
 /**
@@ -130,22 +133,26 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
         }
     };
 
-    private Runnable executeTask = new Runnable() {
-        @Override
-        public void run() {
-            mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
-                    mGoogleApiClient);
-            if (mLastLocation != null) {
-                setCurrLocation(String.valueOf(mLastLocation.getLatitude()) + ", " + String.valueOf(mLastLocation.getLongitude()));
-                Long time = mLastLocation.getTime();
-                setLastLocTime(time);
-                Log.e(TAG, currLocation+" "+getLastLocTime());
+    private Runnable executeTask;
+
+    {
+        executeTask = new Runnable() {
+            @Override
+            public void run() {
+                mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
+                        mGoogleApiClient);
+                if (mLastLocation != null) {
+                    setCurrLocation(String.valueOf(mLastLocation.getLatitude()) + ", " + String.valueOf(mLastLocation.getLongitude()));
+                    Long time = mLastLocation.getTime();
+                    setLastLocTime(time);
+                    Log.e(TAG, currLocation + " " + getLastLocTime());
+                }
+                sendData = new RegularTask();
+                sendData.execute();
+                handler.postDelayed(this, (60000)*20); // 20 minutes
             }
-            sendData = new RegularTask();
-            sendData.execute();
-            handler.postDelayed(this, (60000)*20); // 20 minutes
-        }
-    };
+        };
+    }
 
     private void DisplayLoggingInfo() {
         Log.e(TAG, "entered DisplayLoggingInfo");
@@ -233,8 +240,14 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
     }
 
     private void setLastLocTime(long t){
-        SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
-        lastLocTime = formatter.format(t);
+
+       // SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
+       // lastLocTime = formatter.format(t);
+
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
+        Date d = new Date(t);
+        sdf.setTimeZone(TimeZone.getTimeZone("GMT+05:30"));
+        lastLocTime = sdf.format(d);
     }
     private String getLastLocTime(){
         return lastLocTime;
@@ -310,7 +323,10 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
             String connTime = "";
             try {
                 SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
-                connTime = formatter.format(new Date());
+              //  TimeZone.setDefault(TimeZone.getTimeZone("UTC+5:30"));
+              //  formatter.setTimeZone(TimeZone.getDefault());
+              //  connTime = formatter.format(new Date());
+                connTime = formatter.format(getCurrIndianDate());
                 clientID = getDeviceImei()+" "+connTime;
                 mqttClient = new MqttClient(Server, clientID, new MemoryPersistence());
                 Log.e(TAG, "sendTask clientID: "+clientID);
@@ -380,7 +396,10 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
             String connTime = "";
             try {
                 SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
-                connTime = formatter.format(new Date());
+               // TimeZone.setDefault(TimeZone.getTimeZone("UTC+5:30"));
+              //  formatter.setTimeZone(TimeZone.getDefault());
+              //  connTime = formatter.format(new Date());
+                connTime = formatter.format(getCurrIndianDate());
                 clientID = getDeviceImei()+" "+connTime;
                 mqttClient = new MqttClient(Server, clientID, new MemoryPersistence());
                 Log.e(TAG, "RegularTask clientID: "+clientID);
@@ -393,13 +412,11 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
             JSONArray batteryArray = new JSONArray();
             try {
                 json.put(KEY_IMEI, getDeviceImei());
-              //  json.put(KEY_Location, getCurrLocation());
-              //  json.put(KEY_LocTime, getLastLocTime());
                 jArray.put(getCurrLocation().substring(0, nthOccurrence(getCurrLocation(), ',', 0)));
                 jArray.put(getCurrLocation().substring(nthOccurrence(getCurrLocation(), ',', 0) + 2));
                 jArray.put(getLastLocTime());
                 json.put(KEY_Location, jArray);
-              //  json.put(KEY_Battery, getBatteryStatus());
+
                 batteryArray.put(getBatteryStatus().substring(0, nthOccurrence(getBatteryStatus(), '%', 0)));
                 batteryArray.put(getBatteryStatus().substring(nthOccurrence(getBatteryStatus(), '%', 0) + 1, nthOccurrence(getBatteryStatus(), ' ', 2)));
                 batteryArray.put(getBatteryStatus().substring(nthOccurrence(getBatteryStatus(), ' ', 2)+1, nthOccurrence(getBatteryStatus(), ' ', 5)));
@@ -436,6 +453,49 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
         while (n-- > 0 && pos != -1)
             pos = str.indexOf(c, pos+1);
         return pos;
+    }
+
+    public Date getCurrIndianDate() {
+        // TODO Auto-generated method stub
+        Date indianDate = null;
+
+        SimpleDateFormat currformatter = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss a");
+        GregorianCalendar cal = new GregorianCalendar();
+        String dstring = currformatter.format(cal.getTime());
+        Log.e("Tel Frag", "gettime in indian date: "+cal.getTime());
+        Date rdate = null;
+        try {
+            rdate = currformatter.parse(dstring);
+        } catch (ParseException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        TimeZone tz = TimeZone.getDefault();
+        // From TimeZone current
+        Log.i("Tel Frag", "getindiandate: TimeZone : " + tz.getID() + " - " + tz.getDisplayName());
+        Log.i("Tel Frag", "getindiandate: TimeZone : " + tz);
+        Log.i("Tel Frag", "getindiandate: Date : " + currformatter.format(rdate));
+
+        // To TimeZone Asia/Calcutta
+        SimpleDateFormat sdfIndia = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss a");
+        TimeZone tzInIndia = TimeZone.getTimeZone("Asia/Calcutta");
+        sdfIndia.setTimeZone(tzInIndia);
+
+        String sDateInIndia = sdfIndia.format(rdate); // Convert to String first
+        Date dateInIndia = null;
+        try {
+            dateInIndia = currformatter.parse(sDateInIndia);
+        } catch (ParseException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        Log.i("Tel Frag", "getindiandate: \nTimeZone : " + tzInIndia.getID() +
+                " - " + tzInIndia.getDisplayName());
+        Log.i("Tel Frag", "getindiandate: TimeZone : " + tzInIndia);
+        Log.i("Tel Frag", "getindiandate: Date (String) : " + sDateInIndia);
+        Log.i("Tel Frag", "getindiandate: Date (Object) : " + currformatter.format(dateInIndia));
+
+        return dateInIndia;
     }
 
 }
