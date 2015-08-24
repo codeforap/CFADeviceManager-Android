@@ -4,11 +4,15 @@ package com.cfap.cfadevicemanager;
  * Created by Shreya Jagarlamudi on 27/07/15.
  */
 
+import android.app.AlarmManager;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
@@ -37,11 +41,16 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
+import java.util.HashSet;
+import java.util.List;
 import java.util.TimeZone;
 
 
@@ -64,10 +73,14 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
     private String KEY_Location = "location";
   //  private String KEY_LocTime = "lastloctime";
     private String KEY_Status = "connStatus";
-    private String Server = "tcp://104.155.237.100:1883";
+    private String KEY_Type = "type";
+    private String KEY_Applist = "installed_apps";
+    private String Server = "yourserveraddress";
     public static final String BROADCAST_ACTION = "com.cfap.cfadevicemanager.CFAService";
     GlobalState gs;
     private final Handler handler = new Handler();
+    private final Handler appHandler = new Handler();
+    private final Handler dbHandler = new Handler();
     Intent intent;
     int counter = 0;
     NetworkStateReceiver mConnReceiver;
@@ -78,6 +91,13 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
     LocationRequest mLocationRequest;
     SendTask sendAll;
     RegularTask sendData;
+    AppTask sendAppData;
+    DataUsageToDb updateDataDb;
+    TrafficSnapshot latest=null;
+    TrafficSnapshot previous=null;
+
+    TrafficSnapshot latestForDb;
+    TrafficSnapshot previousForDb;
 
     private long UPDATE_INTERVAL = 200000; // updates location every 20 mins
     private long FASTEST_INTERVAL = 150000;
@@ -88,12 +108,25 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
     private String jsonStr;
     private String clientID;
 
+    private DatabaseHelper mydbHelp;
+
     @Override
     public void onCreate() {
         Log.e(TAG, "in onCreate");
         super.onCreate();
         gs = (GlobalState) getApplication();
         intent = new Intent(BROADCAST_ACTION);
+
+        mydbHelp = DatabaseHelper.getInstance(getApplicationContext());
+        try {
+            mydbHelp.createDataBase();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block;
+            e.printStackTrace();
+        }
+
+      //  Log.e(TAG, "device imei from sqlite db: "+mydbHelp.getImei());
+
         mConnReceiver = new NetworkStateReceiver();
         registerReceivers();
         buildGoogleApiClient();
@@ -106,12 +139,22 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
         mLocationRequest.setInterval(UPDATE_INTERVAL);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
-        sendAll = new SendTask();
-        sendAll.execute();
+        String imei = getDeviceImei();
+        Log.e(TAG, "reg val: "+mydbHelp.getRegistered(imei));
+        if(mydbHelp.getRegistered(imei)==0){
+            sendAll = new SendTask();
+            mydbHelp.insertImei(imei);
+            mydbHelp.insertRegistered(1, getDeviceImei());
+           // Log.e(TAG, "reg val1: " + mydbHelp.getRegistered(imei));
+           // mydbHelp.writeAppsListToDb(getInstalledApps(), today);
+            sendAll.execute();
+        }
         handler.removeCallbacks(executeTask);
-        handler.postDelayed(executeTask, 30000); // 30 seconds
-      //  sendData = new SendTask();
-      //  sendData.execute();
+        handler.postDelayed(executeTask, (60000)*20); // 20 minutes
+        appHandler.removeCallbacks(appUpdateTask);
+        appHandler.postDelayed(appUpdateTask, (60000) * 60 * 24); // 24 hours
+        dbHandler.removeCallbacks(dbUpdatedataTask);
+        dbHandler.postDelayed(dbUpdatedataTask, 30000); // 30 seconds
     }
 
     private void registerReceivers() {
@@ -133,6 +176,9 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
         }
     };
 
+    /**
+     * Defining runnable to execute our location update (RegularTask) every 20 minutes
+     */
     private Runnable executeTask;
 
     {
@@ -154,6 +200,34 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
         };
     }
 
+    /**
+     * defining runnable to execute AppTask every 24 hours. Sends the apps installed list with version,
+     * install date & data usage since boot
+     */
+    private Runnable appUpdateTask = new Runnable() {
+        @Override
+        public void run() {
+            sendAppData = new AppTask();
+            sendAppData.execute();
+            appHandler.postDelayed(this, (60000)*60*24); //24 hours
+        }
+    };
+
+    /**
+     * defining runnable to execute DataUsageToDb task every 30 seconds.
+     */
+    private Runnable dbUpdatedataTask = new Runnable() {
+        @Override
+        public void run() {
+            updateDataDb = new DataUsageToDb();
+            updateDataDb.execute();
+            dbHandler.postDelayed(this, 30000);
+        }
+    };
+
+    /**
+     *
+     */
     private void DisplayLoggingInfo() {
         Log.e(TAG, "entered DisplayLoggingInfo");
 
@@ -225,13 +299,6 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
         sendData.execute();
     }
 
-  /*  private void setConnStatus(String s){
-        connStatus = s;
-    }
-    private String getConnStatus(){
-        return connStatus;
-    } */
-
     private void setCurrLocation(String loc){
         currLocation = loc;
     }
@@ -244,7 +311,7 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
        // SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
        // lastLocTime = formatter.format(t);
 
-        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
+        SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS a");
         Date d = new Date(t);
         sdf.setTimeZone(TimeZone.getTimeZone("GMT+05:30"));
         lastLocTime = sdf.format(d);
@@ -306,6 +373,139 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
         return String.valueOf(batteryPct)+"% charging?: "+isCharging+" AC Charging?: "+acCharge+" USB Charging?: "+usbCharge;
     }
 
+    /**
+     * writes list of installed apps with date to the db. Not using this method anywhere as of now
+     */
+    public void writeInstalledAppsToDb(){
+        ArrayList appArray = new ArrayList();
+        final PackageManager pm = getPackageManager();
+        //get a list of installed apps.
+        List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+        for (ApplicationInfo packageInfo : packages) {
+            appArray.add(packageInfo.loadLabel(pm).toString());
+            String appname = packageInfo.loadLabel(pm).toString();
+            SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
+            String today = sdf.format(getCurrIndianDate());
+            mydbHelp.appEntry(appname, today);
+        }
+       // Log.e(TAG, "InstalledApps: "+appArray);
+       // return appArray;
+    }
+
+    /**
+     * Builds Json Object to be sent to the server with the apps list, install date, version and also
+     * bytes of data sent and received for each app.
+     * @return JsonArray
+     */
+    public JSONArray getAppJson(){
+        JSONArray jarray = new JSONArray();
+        final PackageManager pm = getPackageManager();
+        //get a list of installed apps.
+        List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+
+        for (ApplicationInfo packageInfo : packages) {
+         //   Log.e(TAG, "APP NAME: "+packageInfo.loadLabel(pm));
+            JSONObject subObj = new JSONObject();
+
+            try {
+                PackageInfo pkgInfo = pm.getPackageInfo(packageInfo.packageName, 0);
+                SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
+                String today = sdf.format(getCurrIndianDate());
+            //    subObj.put("app_daily_bytes_rec", mydbHelp.getDailyUsageRec(packageInfo.loadLabel(pm).toString(), today));
+             //   subObj.put("app_daily_bytes_sent", mydbHelp.getDailyUsageSent(packageInfo.loadLabel(pm).toString(), today));
+                subObj.put("app_installdate", pkgInfo.firstInstallTime);
+             //   subObj.put("app_size", packageInfo.);
+                subObj.put("app_version", pkgInfo.versionName);
+                subObj.put("app_name", packageInfo.loadLabel(pm).toString());
+
+                int uid = packageInfo.uid;
+                //adding data sent and received for each app
+                previous=latest;
+                latest=new TrafficSnapshot(this);
+                ArrayList<String> log=new ArrayList<String>();
+                TrafficRecord latest_rec=latest.apps.get(uid);
+                TrafficRecord previous_rec=
+                        (previous==null ? null : previous.apps.get(uid));
+
+                emitLog(latest_rec.tag, latest_rec, previous_rec, log);
+                Collections.sort(log);
+
+                for (String row : log) {
+                //    Log.e("CFA TrafficMonitor", row);
+                    subObj.put("app_data_usage_bytes", row);
+                }
+
+                jarray.put(subObj);
+
+
+            } catch (JSONException e) {
+                e.printStackTrace();
+            } catch (PackageManager.NameNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
+      /*  //adding data sent and received for each app
+        previous=latest;
+        latest=new TrafficSnapshot(this);
+        ArrayList<String> log=new ArrayList<String>();
+        HashSet<Integer> intersection=new HashSet<Integer>(latest.apps.keySet());
+        if (previous!=null) {
+            intersection.retainAll(previous.apps.keySet());
+        }
+
+        for (Integer uid : intersection) {
+            TrafficRecord latest_rec=latest.apps.get(uid);
+            TrafficRecord previous_rec=
+                    (previous==null ? null : previous.apps.get(uid));
+
+            emitLog(latest_rec.tag, latest_rec, previous_rec, log);
+        }
+
+        Collections.sort(log);
+
+        for (String row : log) {
+            Log.e("CFA TrafficMonitor", row);
+        } */
+        return jarray;
+    }
+
+    /**
+     * Builds a string with data received and sent for each app and puts all strings into an arraylist to return
+     * @param name
+     * @param latest_rec
+     * @param previous_rec
+     * @param rows
+     */
+    private void emitLog(CharSequence name, TrafficRecord latest_rec,
+                         TrafficRecord previous_rec,
+                         ArrayList<String> rows) {
+        if (latest_rec.rx>-1 || latest_rec.tx>-1) {
+            StringBuilder buf=new StringBuilder(name);
+
+            buf.append("=");
+            buf.append(String.valueOf(latest_rec.rx));
+            buf.append(" received");
+
+            if (previous_rec!=null) {
+                buf.append(" (delta=");
+                buf.append(String.valueOf(latest_rec.rx-previous_rec.rx));
+                buf.append(")");
+            }
+
+            buf.append(", ");
+            buf.append(String.valueOf(latest_rec.tx));
+            buf.append(" sent");
+
+            if (previous_rec!=null) {
+                buf.append(" (delta=");
+                buf.append(String.valueOf(latest_rec.tx-previous_rec.tx));
+                buf.append(")");
+            }
+
+            rows.add(buf.toString());
+        }
+    }
+
     /** We run all the connections code in an async task so that we do not block the main/UI thread. everything runs
      *on a separate background thread here. We connect to the server using mqttclient and publish complete data in a json format.
      * This task runs when we first create the service. Only once!
@@ -322,7 +522,7 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
         protected String doInBackground(String... params) {
             String connTime = "";
             try {
-                SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
+                SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS a");
               //  TimeZone.setDefault(TimeZone.getTimeZone("UTC+5:30"));
               //  formatter.setTimeZone(TimeZone.getDefault());
               //  connTime = formatter.format(new Date());
@@ -338,6 +538,8 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
             JSONArray jArray = new JSONArray();
             JSONArray batteryArray = new JSONArray();
             try {
+                json.put(KEY_Applist, getAppJson());
+                json.put(KEY_Type, "Registration");
                 json.put(KEY_IMEI, getDeviceImei());
                 json.put(KEY_Model, getDeviceModel());
                 json.put(KEY_Version, getAndroidVersion());
@@ -354,6 +556,7 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
                 batteryArray.put(getBatteryStatus().substring(nthOccurrence(getBatteryStatus(), ' ', 5)+1));
                 json.put(KEY_Battery, batteryArray);
                 json.put(KEY_Status, gs.getConnStatus()+" "+connTime);
+
             } catch (JSONException e) {
                 e.printStackTrace();
             }
@@ -395,7 +598,7 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
         protected String doInBackground(String... params) {
             String connTime = "";
             try {
-                SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
+                SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS a");
                // TimeZone.setDefault(TimeZone.getTimeZone("UTC+5:30"));
               //  formatter.setTimeZone(TimeZone.getDefault());
               //  connTime = formatter.format(new Date());
@@ -411,6 +614,7 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
             JSONArray jArray = new JSONArray();
             JSONArray batteryArray = new JSONArray();
             try {
+                json.put(KEY_Type, "LocUpdate");
                 json.put(KEY_IMEI, getDeviceImei());
                 jArray.put(getCurrLocation().substring(0, nthOccurrence(getCurrLocation(), ',', 0)));
                 jArray.put(getCurrLocation().substring(nthOccurrence(getCurrLocation(), ',', 0) + 2));
@@ -431,6 +635,7 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
                 final MqttMessage message = new MqttMessage(jString.getBytes());
                 final byte[] b = message.getPayload();
                 mqttClient.publish("Details", b, 2, false);
+             //   mqttClient.disconnect();
             } catch (MqttException e) {
                 e.printStackTrace();
             }
@@ -441,10 +646,122 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
             return jString;
         }
 
+    }
+
+    /** We run all the connections code in an async task so that we do not block the main/UI thread. everything runs
+     *on a separate background thread here. We connect to the server using mqttclient and publish locatin & status data in a json format.
+     * This task runs every 24 hours to update the list of apps installed on device and the data usage.
+     * */
+    private class AppTask extends AsyncTask<String, String, String>{
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+
+        }
+
+        @Override
+        protected String doInBackground(String... params) {
+            String connTime = "";
+            try {
+                SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS a");
+                // TimeZone.setDefault(TimeZone.getTimeZone("UTC+5:30"));
+                //  formatter.setTimeZone(TimeZone.getDefault());
+                //  connTime = formatter.format(new Date());
+                connTime = formatter.format(getCurrIndianDate());
+                clientID = getDeviceImei()+" "+connTime;
+                mqttClient = new MqttClient(Server, clientID, new MemoryPersistence());
+                Log.e(TAG, "AppTask clientID: "+clientID);
+                mqttClient.connect();
+            } catch (MqttException e) {
+                e.printStackTrace();
+            }
+            JSONObject json = new JSONObject();
+
+            try {
+                json.put(KEY_Type, "AppsUpdate");
+                json.put(KEY_IMEI, getDeviceImei());
+                json.put(KEY_Applist, getAppJson());
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            String jString = json.toString();
+            try {
+                final MqttMessage message = new MqttMessage(jString.getBytes());
+                final byte[] b = message.getPayload();
+                mqttClient.publish("Details", b, 2, false);
+            } catch (MqttException e) {
+                e.printStackTrace();
+            }
+            Log.e(TAG, "AppTask: locationStr: "+getCurrLocation());
+            Log.e(TAG, "AppTask: json String: "+jString);
+            jsonStr = jString;
+            gs.setJStr(jString);
+            return jString;
+        }
+
         @Override
         protected void onPostExecute(String s) {
-           // handler.removeCallbacks(sendUpdatesToUI);
+            // handler.removeCallbacks(sendUpdatesToUI);
             handler.post(sendUpdatesToUI);
+        }
+    }
+
+    /**
+     * Not using this as of now. Written to update data usage to local database
+     */
+    private class DataUsageToDb extends AsyncTask<Void, Void, Void>{
+
+        @Override
+        protected Void doInBackground(Void... params) {
+           /* final PackageManager pm = getPackageManager();
+            List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+            for (ApplicationInfo packageInfo : packages) {
+                int uid = packageInfo.uid;
+                previousForDb = latestForDb;
+                latestForDb=new TrafficSnapshot(CFAService.this);
+                ArrayList<String> log=new ArrayList<String>();
+                TrafficRecord latest_rec=latestForDb.apps.get(uid);
+                TrafficRecord previous_rec=
+                        (previousForDb==null ? null : previousForDb.apps.get(uid));
+                emitLog(latest_rec.tag, latest_rec, previous_rec, log);
+                Collections.sort(log);
+                for (String row : log) {
+                    String appLabel = packageInfo.loadLabel(pm).toString();
+                    //   Log.e(TAG, "row: label: "+appLabel+" data usage: "+row);
+                    long dataRecSinceBoot = latest_rec.rx;
+                    long dataSentSinceBoot = latest_rec.tx;
+                    Log.e(TAG, "noting app data to db: label: "+appLabel+" data usage: rec: "+dataRecSinceBoot+" sent: "+dataSentSinceBoot);
+                    // Need to get day wise data usage for each app and put into db in order to calculate monthly and 45 days data usage. use alarm manager?
+                    // keep pushing data usage to db every few mins and adding up for the day. At 11:00am every morning, push that previous day's data to the server
+
+                    // or we could check the bytes sent and rec at start of the day , say 12 am and then end of the day, say 11:59 pm and endofday-startofday=bytesthatday
+
+                    SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yyyy");
+                    String today = sdf.format(getCurrIndianDate());
+                    Log.e(TAG, "today: "+today);
+                    if(mydbHelp.checkforDupEntry(appLabel, today)==false){
+                        mydbHelp.appEntry(appLabel, today);
+                        mydbHelp.updateDailyUsageRec(appLabel, today, dataRecSinceBoot);
+                        mydbHelp.updateDailyUsageSent(appLabel, today, dataSentSinceBoot);
+                    } else{
+                        // add up the current data usage to the existing usage
+
+                    }
+                }
+            } */
+            Log.e(TAG, "updateToDb task background");
+            return null;
+        }
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            //super.onPostExecute(aVoid);
         }
     }
 
@@ -455,6 +772,10 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
         return pos;
     }
 
+    /**
+     * Gets the current indian date no matter what the device time or time zone is set to
+     * @return
+     */
     public Date getCurrIndianDate() {
         // TODO Auto-generated method stub
         Date indianDate = null;
@@ -462,7 +783,7 @@ public class CFAService extends Service implements GoogleApiClient.ConnectionCal
         SimpleDateFormat currformatter = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss a");
         GregorianCalendar cal = new GregorianCalendar();
         String dstring = currformatter.format(cal.getTime());
-        Log.e("Tel Frag", "gettime in indian date: "+cal.getTime());
+       // Log.e("Tel Frag", "gettime in indian date: "+cal.getTime());
         Date rdate = null;
         try {
             rdate = currformatter.parse(dstring);

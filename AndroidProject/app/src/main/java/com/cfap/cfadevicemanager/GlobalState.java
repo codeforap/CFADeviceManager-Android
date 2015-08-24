@@ -1,6 +1,7 @@
 package com.cfap.cfadevicemanager;
 
 import android.app.Application;
+import android.widget.EditText;
 
 /**
  * Created by Shreya on 27/07/15.
@@ -15,6 +16,7 @@ public class GlobalState extends Application{
     private String jStr = "";
     private String connStatus="";
 
+
     public void setJStr(String js){
         jStr = js;
     }
@@ -28,5 +30,6 @@ public class GlobalState extends Application{
     public String getConnStatus(){
         return connStatus;
     }
+
 
 }
