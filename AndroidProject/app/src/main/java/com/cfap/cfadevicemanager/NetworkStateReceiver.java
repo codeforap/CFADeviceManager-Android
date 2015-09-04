@@ -22,23 +22,23 @@ public class NetworkStateReceiver extends BroadcastReceiver {
 
     private String TAG = "NetworkStateReceiver";
     GlobalState gs;
+    private DatabaseHelper myDbHelp;
 
     public void onReceive(Context context, Intent intent) {
         Log.e(TAG, "Network connectivity change");
         gs = (GlobalState) context.getApplicationContext();
+        myDbHelp = DatabaseHelper.getInstance(context);
         if(intent.getExtras()!=null) {
             NetworkInfo ni=(NetworkInfo) intent.getExtras().get(ConnectivityManager.EXTRA_NETWORK_INFO);
             if(ni!=null && ni.getState()==NetworkInfo.State.CONNECTED) {
                 Log.e(TAG,"Network "+ni.getTypeName()+" connected");
-           //     SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
-            //    String connTime = formatter.format(new Date());
                 gs.setConnStatus("true");
+                Log.e(TAG, "no of pending tasks: "+myDbHelp.getPendingJsons().size());
+                if(myDbHelp.getPendingJsons().size()>0) new FetchFromDatabase(context);
             }
         }
         if(intent.getExtras().getBoolean(ConnectivityManager.EXTRA_NO_CONNECTIVITY,Boolean.FALSE)) {
             Log.d(TAG, "There's no network connectivity");
-        //    SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS");
-        //    String connTime = formatter.format(new Date());
             gs.setConnStatus("false");
         }
     }

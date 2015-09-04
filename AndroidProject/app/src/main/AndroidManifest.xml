@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.GET_TASKS"/>
 
     <application
         android:name="com.cfap.cfadevicemanager.GlobalState"
@@ -25,15 +26,23 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <service
-            android:name=".CFAService">
+            android:enabled="true"
+            android:name=".LocationService">
             <intent-filter>
-                <action android:name="com.cfap.cfadevicemanager.CFAService" />
+                <action android:name="com.cfap.cfadevicemanager.LocationService" />
             </intent-filter>
         </service>
-        <receiver android:name=".ServiceManager">
+        <service
+            android:enabled="true"
+            android:name=".AppUsageService">
             <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="com.cfap.cfadevicemanager.AppUsageService" />
+            </intent-filter>
+        </service>
+        <receiver android:name=".CFAReceiver">
+            <intent-filter>
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </receiver>
@@ -42,6 +51,20 @@
                 <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".MyDeviceAdminReceiver"
+            android:permission="android.permission.BIND_DEVICE_ADMIN" >
+            <intent-filter>
+
+                <!-- This action is required -->
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+
+            <!-- This is required this receiver to become device admin component. -->
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin_config" />
         </receiver>
     </application>
 

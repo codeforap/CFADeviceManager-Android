@@ -3,6 +3,7 @@ package com.cfap.cfadevicemanager;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.DatabaseUtils;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
@@ -31,11 +32,21 @@ public class DatabaseHelper extends SQLiteOpenHelper{
 
     // Table Names
     private static final String GENERAL = "general";
+    private static final String TASKS = "tasks";
     private static final String DATATABLE = "data_table";
 
     // general column names
     private static final String COL_imei = "imei";
     private static final String COL_registered = "registered";
+    private static final String COL_model = "model";
+    private static final String COL_version = "version";
+
+    // tasks column names
+    private static final String COL_datewtime = "datewtime";
+    private static final String COL_type = "type";
+    private static final String COL_json = "json";
+    private static final String COL_status = "status";
+
     // data_table column names
     private static final String COL_appname = "appname";
     private static final String COL_date = "date";
@@ -148,10 +159,8 @@ public class DatabaseHelper extends SQLiteOpenHelper{
     }
 
     public void openDataBase() throws SQLException {
-
         //Open the database
         String myPath = DB_PATH + DB_NAME;
-        //myDatabase = SQLiteDatabase.openDatabase(myPath, null, SQLiteDatabase.OPEN_READONLY);
         myDatabase= SQLiteDatabase.openDatabase(myPath, null, SQLiteDatabase.OPEN_READWRITE);
     }
 
@@ -167,6 +176,69 @@ public class DatabaseHelper extends SQLiteOpenHelper{
             myDatabase.close();
 
         super.close();
+    }
+
+    public void insertTask(String date, String type, String json, String status){
+        SQLiteDatabase db = this.getReadableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put(COL_datewtime, date);
+        cv.put(COL_type, type);
+        cv.put(COL_json, json);
+        cv.put(COL_status, status);
+        db.insert(TASKS, null, cv);
+        Log.e(TAG, "inserted new task");
+    }
+
+    public void updateTaskStatus(String json, String status){
+        SQLiteDatabase db = this.getReadableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put(COL_status, status);
+        String where = "json=?";
+        String[] values = {json};
+        db.update(TASKS, cv, where, values);
+    }
+
+    public int getNumberOfPendingTasks(){
+        int n = 0;
+        SQLiteDatabase db = this.getReadableDatabase();
+        n = (int) DatabaseUtils.longForQuery(db, "SELECT COUNT(*) FROM tasks WHERE status='pending'", null);
+        return n;
+    }
+
+    public ArrayList<String> getPendingJsons(){
+        ArrayList<String> pendingArray = new ArrayList<String>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT json FROM tasks WHERE status='pending'", null);
+        int getIndex = cursor.getColumnIndex("json");
+        cursor.moveToFirst();
+        while(!cursor.isAfterLast()){
+            pendingArray.add(cursor.getString(getIndex));
+            cursor.moveToNext();
+        }
+        cursor.close();
+        Log.e(TAG, "pending tasks array: "+pendingArray);
+        return pendingArray;
+    }
+
+    public ArrayList<String> getSentJsons(){
+        ArrayList<String> pendingArray = new ArrayList<String>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT json FROM tasks WHERE status='sent'", null);
+        int getIndex = cursor.getColumnIndex("json");
+        cursor.moveToFirst();
+        while(!cursor.isAfterLast()){
+            pendingArray.add(cursor.getString(getIndex));
+            cursor.moveToNext();
+        }
+        cursor.close();
+        Log.e(TAG, "pending tasks array: "+pendingArray);
+        return pendingArray;
+    }
+
+    public void eraseSentDataFromDb(){
+        SQLiteDatabase db = this.getWritableDatabase();
+        db.rawQuery("DELETE FROM tasks WHERE status='sent'", null);
+        db.close();
     }
 
     public void insertImei(String imei){
@@ -188,6 +260,50 @@ public class DatabaseHelper extends SQLiteOpenHelper{
 
         }
         return myImei;
+    }
+
+    public void updateModel(String imei, String model){
+        SQLiteDatabase db = this.getReadableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put(COL_model, model);
+        String where = "model=?";
+        String[] values = {model};
+        db.update(GENERAL, cv, where, values);
+    }
+
+    public String getModel(){
+        String model = "testmodel";
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT model FROM general", null);
+        int getIndex = cursor.getColumnIndex("model");
+        cursor.moveToFirst();
+        while(!cursor.isAfterLast()){
+            model =  cursor.getString(getIndex);
+            cursor.moveToNext();
+        }
+        return model;
+    }
+
+    public void updateVersion(String imei, String version){
+        SQLiteDatabase db = this.getReadableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put(COL_version, version);
+        String where = "version=?";
+        String[] values = {version};
+        db.update(GENERAL, cv, where, values);
+    }
+
+    public String getVersion(){
+        String version = "testversion";
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT version FROM general", null);
+        int getIndex = cursor.getColumnIndex("version");
+        cursor.moveToFirst();
+        while(!cursor.isAfterLast()){
+            version =  cursor.getString(getIndex);
+            cursor.moveToNext();
+        }
+        return version;
     }
 
     public void insertRegistered(int reg, String imei){

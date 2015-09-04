@@ -82,7 +82,7 @@
         android:paddingRight="15dp"
         android:paddingBottom="15dp"/>
 
-    <Button
+  <!--  <Button
         android:id="@+id/logout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -92,6 +92,6 @@
         android:background="#8BC34A"
         android:textColor="#FFFFFF"
         android:paddingLeft="10dp"
-        android:paddingRight="10dp"/>
+        android:paddingRight="10dp"/> -->
 
 </LinearLayout>
