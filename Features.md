@@ -1,8 +1,22 @@
 # Features
 
-This Android App must have following minimal functions:
+This Android App must have following functions:
 
-* Send the Location Co-ordinates of the device to the server for every 30 min and whenever server requested.
+* Full and selective wipe of data on device on server request
+* Install & Update Apps on Air
+* Send Location updates to server
+* Send app usage stats to server
+* Send data usage stats to server
+* Send Battery, status, memory updates to server
+* Group devices based on their features (eg: wifi, bluetooth, tethering etc.)
+* Make the MDM application uninstallable/ unremovable
+* Send messages to individual or group devices
+* Secure browsers and data on the tablets
+* Restrict Cellular Internet usage for specific applications
+* Segregate official and personal data
+* Device level and container level encryption
+
+* Send the Location Co-ordinates of the device to the server for every 20 min and whenever server requested.
 * Device Online Availabilty Details.
 * Function for Device Info like Model Name, IMEI, Battery Charge available etc.
 * Apps installed and Data Usage.
@@ -25,3 +39,4 @@ This Android App must have following minimal functions:
 * Storage Details and Usage
 * Installed Apps and their usage, running status, last known-opened etc.
 * Internet-Data Usage and classification by apps and (wifi/mobile data)
+
