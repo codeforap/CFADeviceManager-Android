@@ -30,7 +30,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 
 /**
  * Created by Shreya Jagarlamudi on 27/07/15.
@@ -56,6 +59,7 @@ public class MainActivity extends Activity {
     GlobalState gs;
     DevicePolicyManager devicePolicyManager;
     ComponentName demoDeviceAdmin;
+    private String intendedTime = "11:59:00 PM";
 
     private final String MyPREFERENCES = "CfaPrefs" ;
     private final String usernamePref = "cfausername";
@@ -71,6 +75,8 @@ public class MainActivity extends Activity {
 
     private int LOC_INTERVAL = (60000)*20; //20 minutes
     private int APPUSAGE_INTERVAL = (60000)*60*24; //24 hours
+    private int FOREGROUND_INTERVAL = 5000; // 5 seconds
+    private int DATAUSAGE_INTERVAL = 30000; // 30 seconds
     private DatabaseHelper myDbHelp;
     private LocationDetector locationDetector;
     private String imei = "";
@@ -98,6 +104,9 @@ public class MainActivity extends Activity {
                     getString(R.string.device_admin_explanation));
             startActivity(intent);
         }
+
+        getBaseContext().getApplicationContext().sendBroadcast(
+                new Intent("StartupReceiver_Manual_Start"));
 
         Battery_Status = gs.getBatteryStatus();
         locationDetector = new LocationDetector(this);
@@ -131,8 +140,8 @@ public class MainActivity extends Activity {
             usernameet.setVisibility(View.GONE);
             passwordet.setVisibility(View.GONE);
             submit.setVisibility(View.GONE);
-
-
+            maintv.setVisibility(View.VISIBLE);
+            maintv.setText("Your device is now registered with the Government of Andhra Pradesh, India");
         }
 
         submit.setOnClickListener(new View.OnClickListener() {
@@ -224,11 +233,29 @@ public class MainActivity extends Activity {
                         PendingIntent Loc_PendingIntent = PendingIntent.getBroadcast(MainActivity.this, 0, Loc_intent, 0);
                         alarmManager.setInexactRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), LOC_INTERVAL, Loc_PendingIntent);
 
-                        Intent App_intent = new Intent(MainActivity.this, CFAReceiver.class);
-                        App_intent.putExtra("serviceType", "AppUsage");
-                        PendingIntent App_PendingIntent = PendingIntent.getBroadcast(MainActivity.this, 1, App_intent, 0);
-                        alarmManager.setInexactRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis(), APPUSAGE_INTERVAL, App_PendingIntent);
 
+                       // invoked at 11:59 PM every night
+                        try {
+                            String string1 = "23:59:00";
+                            Date time1 = null;
+                            time1 = new SimpleDateFormat("HH:mm:ss").parse(string1);
+                            Calendar calendar1 = Calendar.getInstance();
+                            calendar1.setTime(time1);
+                            Intent App_intent = new Intent(MainActivity.this, CFAReceiver.class);
+                            App_intent.putExtra("serviceType", "AppUsage");
+                            PendingIntent App_PendingIntent = PendingIntent.getBroadcast(MainActivity.this, 2, App_intent, 0);
+                            alarmManager.setInexactRepeating(AlarmManager.RTC_WAKEUP, calendar1.getTimeInMillis(), AlarmManager.INTERVAL_DAY, App_PendingIntent);
+                        } catch (ParseException e) {
+                            e.printStackTrace();
+                        }
+
+
+                        // Uncomment this if you only want your app and system installed apps to open. The user will not be able to open any toher apps
+                    /*    Intent Foreground_intent = new Intent(MainActivity.this, CFAReceiver.class);
+                        Foreground_intent.putExtra("serviceType", "Foreground");
+                        PendingIntent Fore_PendingIntent = PendingIntent.getBroadcast(MainActivity.this, 2, Foreground_intent, 0);
+                        alarmManager.setInexactRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 60000, FOREGROUND_INTERVAL, Fore_PendingIntent);
+                    */
 
                     } catch (MqttException e) {
                         myDbHelp.insertRegistered(0, imei);

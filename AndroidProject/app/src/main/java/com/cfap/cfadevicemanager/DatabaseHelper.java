@@ -231,7 +231,7 @@ public class DatabaseHelper extends SQLiteOpenHelper{
             cursor.moveToNext();
         }
         cursor.close();
-        Log.e(TAG, "pending tasks array: "+pendingArray);
+        Log.e(TAG, "sent tasks array: "+pendingArray);
         return pendingArray;
     }
 
@@ -340,11 +340,13 @@ public class DatabaseHelper extends SQLiteOpenHelper{
         }
     }
 
-    public void appEntry(String appname, String date){
+    public void appEntry(String appname, String date, long dataRec, long dataSent){
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues cv = new ContentValues();
         cv.put("appname", appname);
         cv.put("date",date);
+        cv.put("dailyusageRec", dataRec);
+        cv.put("dailyusageSent", dataSent);
         db.insert("data_table", null, cv);
     }
 
@@ -357,10 +359,22 @@ public class DatabaseHelper extends SQLiteOpenHelper{
         return true;
     }
 
+    public ArrayList<String> getAllAppsToday(String date){
+        ArrayList<String> appsList = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT appname FROM data_table WHERE date='" + date + "'", null);
+        int getIndex = cursor.getColumnIndex("appname");
+        while(!cursor.isAfterLast()){
+           appsList.add(cursor.getString(getIndex));
+            cursor.moveToNext();
+        }
+        return appsList;
+    }
+
     public void updateDailyUsageRec(String appname, String date, long dailyBytesRec){
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues cv = new ContentValues();
-        cv.put("dailyusageRec",dailyBytesRec);
+        cv.put("dailyusageRec", dailyBytesRec);
         String where = "appname=? date=?";
         String[] values = {appname, date};
         db.update("data_table", cv, where, values);

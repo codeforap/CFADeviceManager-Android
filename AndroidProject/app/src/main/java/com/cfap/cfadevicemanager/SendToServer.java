@@ -20,11 +20,12 @@ import java.text.SimpleDateFormat;
  */
 public class SendToServer{
 
+    private String TAG = "SendToServer";
     private Context context;
     private DatabaseHelper myDbHelp;
     private String connTime = "";
     private String clientID;
-    private String Server = "yourServerIPHere";
+    private String Server = "YourServerIpHere";
     private MqttClient mqttClient;
 
     public SendToServer(Context c, JSONObject json) throws MqttException{
@@ -39,10 +40,12 @@ public class SendToServer{
         connTime = formatter.format(ist.getIST());
         clientID = myDbHelp.getImei();
             mqttClient = new MqttClient(Server, clientID, new MemoryPersistence());
+       // Log.e(TAG, "connecting...");
             mqttClient.connect();
                 String jString = jsonObj.toString();
                 final MqttMessage message = new MqttMessage(jString.getBytes());
                 final byte[] b = message.getPayload();
+         //   Log.e(TAG, "publishing...");
                 mqttClient.publish("Details", b, 2, false);
     }
 }

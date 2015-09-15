@@ -50,6 +50,7 @@ public class AppUsageService extends IntentService{
 
     @Override
     protected void onHandleIntent(Intent intent) {
+        Log.e(TAG, "in AppUsageService");
         JSONObject json = new JSONObject();
         SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS a");
         String connTime = formatter.format(ist.getIST());
@@ -72,7 +73,7 @@ public class AppUsageService extends IntentService{
 
     /**
      * Builds Json Object to be sent to the server with the apps list, install date, version and also
-     * bytes of data sent and received for each app.
+     * bytes of data sent and received since boot for each app.
      * @return JsonArray
      */
     public JSONArray getAppJson(){
@@ -161,4 +162,5 @@ public class AppUsageService extends IntentService{
             rows.add(buf.toString());
         }
     }
+
 }

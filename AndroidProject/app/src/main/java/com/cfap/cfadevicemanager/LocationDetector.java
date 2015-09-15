@@ -8,6 +8,7 @@ import android.util.Log;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.FusedLocationProviderApi;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
@@ -31,10 +32,11 @@ public class LocationDetector implements GoogleApiClient.ConnectionCallbacks, Go
     private String lastLocTime; // time of curr location or last known location
     private long UPDATE_INTERVAL = (60000)*20; // updates location every 20 mins
     private long FASTEST_INTERVAL = (60000)*15;
+    FusedLocationProviderApi fusedLocationProviderApi;
 
     public LocationDetector(Context c){
         context = c;
-        buildGoogleApiClient();
+      /*  buildGoogleApiClient();
         if(mGoogleApiClient!= null){
             mGoogleApiClient.connect();
         }else{
@@ -44,14 +46,36 @@ public class LocationDetector implements GoogleApiClient.ConnectionCallbacks, Go
 
         mLocationRequest.setInterval(UPDATE_INTERVAL);
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
+        mLocationRequest.setFastestInterval(FASTEST_INTERVAL); */
+
+        getLocation();
+
+    }
+
+    private void getLocation() {
+        mLocationRequest = LocationRequest.create();
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        mLocationRequest.setInterval(60000);
+        mLocationRequest.setFastestInterval(60000);
+        fusedLocationProviderApi = LocationServices.FusedLocationApi;
+        mGoogleApiClient = new GoogleApiClient.Builder(context)
+                .addApi(LocationServices.API)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .build();
+        if (mGoogleApiClient != null) {
+            mGoogleApiClient.connect();
+        }
     }
 
     @Override
     public void onConnected(Bundle bundle) {
         Log.e(TAG, "in onConnected");
-        mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
-                mGoogleApiClient);
+        fusedLocationProviderApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+      //  mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
+       //         mGoogleApiClient);
+        mLastLocation = fusedLocationProviderApi.getLastLocation(
+                         mGoogleApiClient);
         if (mLastLocation != null) {
             setCurrLocation(String.valueOf(mLastLocation.getLatitude()) + ", " + String.valueOf(mLastLocation.getLongitude()));
             Long time = mLastLocation.getTime();

@@ -20,8 +20,8 @@ public class LocationService extends IntentService {
 
     private String TAG = "LocationService";
     private DatabaseHelper myDbHelp;
-    private LocationDetector locationDetector;
     GlobalState gs;
+    private LocationDetector locationDetector;
 
     private String KEY_IMEI = "imei";
     private String KEY_Battery = "battery";
@@ -65,10 +65,14 @@ public class LocationService extends IntentService {
             json.put(KEY_Battery, batteryArray);
             Log.e(TAG, "creating  location json");
             String currLoc = locationDetector.getCurrLocation();
+            Log.e(TAG, "currLoc in LocService: "+currLoc);
             String lastLocTime = locationDetector.getLastLocTime();
-            jArray.put(currLoc.substring(0, nthOccurrence(currLoc, ',', 0)));
-            jArray.put(currLoc.substring(nthOccurrence(currLoc, ',', 0) + 2));
-            jArray.put(lastLocTime);
+            Log.e(TAG, "lastLocTime in LocService: "+lastLocTime);
+           if(currLoc!=null) {
+               jArray.put(currLoc.substring(0, nthOccurrence(currLoc, ',', 0)));
+               jArray.put(currLoc.substring(nthOccurrence(currLoc, ',', 0) + 2));
+           }
+            if(lastLocTime!=null) jArray.put(lastLocTime);
             json.put(KEY_Location, jArray);
             Log.e(TAG, "inserted location into json object");
             json.put(KEY_Type, "LocUpdate");
