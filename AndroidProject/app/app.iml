@@ -117,6 +117,7 @@
     <orderEntry type="library" exported="" name="mediarouter-v7-22.0.0" level="project" />
     <orderEntry type="library" exported="" name="org.eclipse.paho.android.service-1.0.3-20150720.040716-120" level="project" />
     <orderEntry type="library" exported="" name="play-services-drive-7.5.0" level="project" />
+    <orderEntry type="library" exported="" name="jackson-databind-2.6.0-rc3" level="project" />
     <orderEntry type="library" exported="" name="support-annotations-22.2.0" level="project" />
     <orderEntry type="library" exported="" name="play-services-analytics-7.5.0" level="project" />
     <orderEntry type="library" exported="" name="play-services-panorama-7.5.0" level="project" />
@@ -128,6 +129,7 @@
     <orderEntry type="library" exported="" name="play-services-safetynet-7.5.0" level="project" />
     <orderEntry type="library" exported="" name="play-services-base-7.5.0" level="project" />
     <orderEntry type="library" exported="" name="play-services-7.5.0" level="project" />
+    <orderEntry type="library" exported="" name="jackson-core-2.6.0-rc3" level="project" />
     <orderEntry type="library" exported="" name="play-services-gcm-7.5.0" level="project" />
     <orderEntry type="library" exported="" name="play-services-appinvite-7.5.0" level="project" />
     <orderEntry type="library" exported="" name="support-v4-22.2.0" level="project" />

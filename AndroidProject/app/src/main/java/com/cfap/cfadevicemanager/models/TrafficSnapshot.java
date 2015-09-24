@@ -12,19 +12,19 @@
 		http://commonsware.com/AndTuning
 */
 
-package com.cfap.cfadevicemanager;
+package com.cfap.cfadevicemanager.models;
 
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 
 import java.util.HashMap;
 
-class TrafficSnapshot {
+public class TrafficSnapshot {
 	TrafficRecord device=null;
-	HashMap<Integer, TrafficRecord> apps=
+	public HashMap<Integer, TrafficRecord> apps=
 		new HashMap<Integer, TrafficRecord>();
 	
-	TrafficSnapshot(Context ctxt) {
+	public TrafficSnapshot(Context ctxt) {
 		device=new TrafficRecord();
 		
 		HashMap<Integer, String> appNames=new HashMap<Integer, String>();

@@ -3,6 +3,7 @@
     package="com.cfap.cfadevicemanager" >
 
 
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
@@ -10,6 +11,7 @@
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.GET_TASKS"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
     <application
         android:name="com.cfap.cfadevicemanager.GlobalState"
@@ -26,33 +28,39 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
+        <activity
+            android:name="com.cfap.cfadevicemanager.DialogActivity"
+            android:label="Message from MDM"
+            android:screenOrientation="portrait"
+            android:theme="@android:style/Theme.Dialog" >
+        </activity>
+        <service android:name=".services.MyMqttService"></service>
         <service
             android:enabled="true"
-            android:name=".LocationService">
+            android:name=".services.LocationService">
             <intent-filter>
                 <action android:name="com.cfap.cfadevicemanager.LocationService" />
             </intent-filter>
         </service>
         <service
             android:enabled="true"
-            android:name=".AppUsageService">
+            android:name=".services.AppUsageService">
             <intent-filter>
                 <action android:name="com.cfap.cfadevicemanager.AppUsageService" />
             </intent-filter>
         </service>
-        <receiver android:name=".CFAReceiver">
+        <receiver android:name=".services.CFAReceiver">
             <intent-filter>
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </receiver>
-        <receiver android:name=".NetworkStateReceiver">
+        <receiver android:name=".services.NetworkStateReceiver">
             <intent-filter>
                 <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </receiver>
-        <receiver android:name=".ForegroundActivityReceiver">
+        <receiver android:name=".services.ForegroundActivityReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="com.cfap.CUSTOM_INTENT" />
@@ -60,7 +68,7 @@
             </intent-filter>
         </receiver>
         <receiver
-            android:name=".MyDeviceAdminReceiver"
+            android:name=".services.MyDeviceAdminReceiver"
             android:permission="android.permission.BIND_DEVICE_ADMIN" >
             <intent-filter>
 

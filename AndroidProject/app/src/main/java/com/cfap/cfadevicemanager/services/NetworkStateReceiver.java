@@ -1,4 +1,4 @@
-package com.cfap.cfadevicemanager;
+package com.cfap.cfadevicemanager.services;
 
 /**
  * Created by Shreya Jagarlamudi on 30/07/15.
@@ -16,6 +16,9 @@ import android.net.NetworkInfo;
 import android.os.Build;
 import android.util.Log;
 import android.widget.Toast;
+
+import com.cfap.cfadevicemanager.DatabaseHelper;
+import com.cfap.cfadevicemanager.GlobalState;
 
 import java.lang.reflect.Field;
 import java.text.SimpleDateFormat;
@@ -45,7 +48,7 @@ public class NetworkStateReceiver extends BroadcastReceiver {
                 Log.e(TAG,"Network "+ni.getTypeName()+" connected");
                 gs.setConnStatus("true");
                 Log.e(TAG, "no of pending tasks: "+myDbHelp.getPendingJsons().size());
-                if(myDbHelp.getPendingJsons().size()>0) new FetchFromDatabase(context);
+                if(myDbHelp.getPendingJsons().size()>0) new FetchFromDatabase(context, "myimei");
             }
         }
         if(intent.getExtras().getBoolean(ConnectivityManager.EXTRA_NO_CONNECTIVITY,Boolean.FALSE)) {

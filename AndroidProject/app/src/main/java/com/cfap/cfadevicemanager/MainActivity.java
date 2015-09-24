@@ -21,6 +21,15 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.cfap.cfadevicemanager.services.CFAReceiver;
+import com.cfap.cfadevicemanager.services.GPSTracker;
+import com.cfap.cfadevicemanager.services.ISTDateTime;
+import com.cfap.cfadevicemanager.services.LocationDetector;
+import com.cfap.cfadevicemanager.services.MyDeviceAdminReceiver;
+import com.cfap.cfadevicemanager.services.MyMqttService;
+import com.cfap.cfadevicemanager.services.SendToServer;
+import com.cfap.cfadevicemanager.utils.Constants;
+
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
@@ -60,6 +69,7 @@ public class MainActivity extends Activity {
     DevicePolicyManager devicePolicyManager;
     ComponentName demoDeviceAdmin;
     private String intendedTime = "11:59:00 PM";
+    private GPSTracker gps;
 
     private final String MyPREFERENCES = "CfaPrefs" ;
     private final String usernamePref = "cfausername";
@@ -92,6 +102,7 @@ public class MainActivity extends Activity {
         // Initialize Device Policy Manager service and our receiver class
         devicePolicyManager = (DevicePolicyManager) getSystemService(Context.DEVICE_POLICY_SERVICE);
         demoDeviceAdmin = new ComponentName(this, MyDeviceAdminReceiver.class);
+        gps = new GPSTracker(getApplicationContext());
 
         if (devicePolicyManager.isAdminActive(demoDeviceAdmin)) {
             // do nothing
@@ -199,12 +210,18 @@ public class MainActivity extends Activity {
                     batteryArray.put(Battery_Status.substring(nthOccurrence(Battery_Status, ' ', 2) + 1, nthOccurrence(Battery_Status, ' ', 5)));
                     batteryArray.put(Battery_Status.substring(nthOccurrence(Battery_Status, ' ', 5) + 1));
                     json.put(KEY_Battery, batteryArray);
-                    String currLoc = locationDetector.getCurrLocation();
+                  /*  String currLoc = locationDetector.getCurrLocation();
                     String lastLoc = locationDetector.getLastLocTime();
                     jArray.put(currLoc.substring(0, nthOccurrence(currLoc, ',', 0)));
                     jArray.put(currLoc.substring(nthOccurrence(currLoc, ',', 0) + 2));
                     jArray.put(lastLoc);
-                    json.put(KEY_Location, jArray);
+                    json.put(KEY_Location, jArray);*/
+                    double latitude = gps.getLatitude();
+                    double longitude = gps.getLongitude();
+                    if (latitude != 0 && longitude !=0) {
+                        json.put(Constants.Device.MOBILE_DEVICE_LATITUDE, latitude);
+                        json.put(Constants.Device.MOBILE_DEVICE_LONGITUDE, longitude);
+                    }
                     json.put(KEY_Version, gs.getAndroidVersion());
                     json.put(KEY_Model, gs.getDeviceModel());
                     json.put(KEY_IMEI, gs.getDeviceImei());
@@ -214,7 +231,8 @@ public class MainActivity extends Activity {
                     myDbHelp.insertTask(connTime, "Registration", jString, "pending");
 
                     try {
-                        sendMqtt = new SendToServer(MainActivity.this, json);
+
+                        sendMqtt = new SendToServer(MainActivity.this, json, "Details");
                         myDbHelp.insertRegistered(1, imei);
                         myDbHelp.updateTaskStatus(jString, "sent");
                         Log.e(TAG, "Registration json: " + jString);
@@ -225,6 +243,10 @@ public class MainActivity extends Activity {
                                 maintv.setText("Your device is now registered with the Government of Andhra Pradesh, India");
                             }
                         });
+
+                        Intent serviceIntent = new Intent(this, MyMqttService.class);
+                        // serviceIntent.setAction("com.cfap.cfadevicemanager.MqttService");
+                        startService(serviceIntent);
 
                         AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 

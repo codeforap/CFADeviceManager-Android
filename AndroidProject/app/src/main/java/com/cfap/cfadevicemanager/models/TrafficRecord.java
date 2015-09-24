@@ -12,14 +12,14 @@
 		http://commonsware.com/AndTuning
 */
 
-package com.cfap.cfadevicemanager;
+package com.cfap.cfadevicemanager.models;
 
 import android.net.TrafficStats;
 
-class TrafficRecord {
-	long tx=0;
-	long rx=0;
-	String tag=null;
+public class TrafficRecord {
+	public long tx=0;
+	public long rx=0;
+	public String tag=null;
     long totTx=0;
     long totRx=0;
 	long wifiTx=0;

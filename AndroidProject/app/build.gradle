@@ -25,4 +25,7 @@ dependencies {
     compile 'com.google.android.gms:play-services:7.5.0'
     compile files('libs/org.eclipse.paho.android.service-1.0.3-20150720.040716-120.jar')
     compile files('libs/org.eclipse.paho.client.mqttv3-1.0.3-20150720.040213-173.jar')
+    compile files('libs/jackson-databind-2.6.0-rc3.jar')
+    compile files('libs/jackson-core-2.6.0-rc3.jar')
+
 }

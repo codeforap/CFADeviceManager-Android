@@ -1,4 +1,4 @@
-package com.cfap.cfadevicemanager;
+package com.cfap.cfadevicemanager.services;
 
 import android.content.Context;
 import android.content.Intent;

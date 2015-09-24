@@ -1,4 +1,4 @@
-package com.cfap.cfadevicemanager;
+package com.cfap.cfadevicemanager.services;
 
 import android.app.ActivityManager;
 import android.content.BroadcastReceiver;

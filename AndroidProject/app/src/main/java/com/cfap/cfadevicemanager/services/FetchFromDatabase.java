@@ -1,6 +1,8 @@
-package com.cfap.cfadevicemanager;
+package com.cfap.cfadevicemanager.services;
 
 import android.content.Context;
+
+import com.cfap.cfadevicemanager.DatabaseHelper;
 
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.json.JSONException;
@@ -15,10 +17,12 @@ public class FetchFromDatabase {
 
     private Context context;
     private DatabaseHelper myDbHelp;
+    private String topic;
 
-    public FetchFromDatabase(Context c){
+    public FetchFromDatabase(Context c, String topic){
         context = c;
         myDbHelp = DatabaseHelper.getInstance(context);
+        this.topic = topic;
         fetchNsend();
     }
 
@@ -30,7 +34,7 @@ public class FetchFromDatabase {
                 try {
                     String s = pendingTasks.get(i);
                     JSONObject jObj = new JSONObject(s);
-                    SendToServer sts = new SendToServer(context, jObj);
+                    SendToServer sts = new SendToServer(context, jObj, topic);
                     myDbHelp.updateTaskStatus(s, "sent");
                 } catch (MqttException e) {
                     e.printStackTrace();

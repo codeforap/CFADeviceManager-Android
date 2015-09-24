@@ -1,4 +1,4 @@
-package com.cfap.cfadevicemanager;
+package com.cfap.cfadevicemanager.services;
 
 import android.app.IntentService;
 import android.content.Intent;
@@ -6,6 +6,11 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.util.Log;
+
+import com.cfap.cfadevicemanager.DatabaseHelper;
+import com.cfap.cfadevicemanager.GlobalState;
+import com.cfap.cfadevicemanager.models.TrafficRecord;
+import com.cfap.cfadevicemanager.models.TrafficSnapshot;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -64,11 +69,11 @@ public class AppUsageService extends IntentService{
         }
         String jString = json.toString();
         myDbHelp.insertTask(connTime, "LocUpdate", jString, "pending");
-        Log.e(TAG, "AppsUpdate: " + jString);
-        new FetchFromDatabase(this);
-        Log.e(TAG, "Sent Jsons before erase: " + myDbHelp.getSentJsons());
+       // Log.e(TAG, "AppsUpdate: " + jString);
+        new FetchFromDatabase(this, "Details");
+       // Log.e(TAG, "Sent Jsons before erase: " + myDbHelp.getSentJsons());
         myDbHelp.eraseSentDataFromDb();
-        Log.e(TAG, "Sent Jsons after erase: " + myDbHelp.getSentJsons());
+      //  Log.e(TAG, "Sent Jsons after erase: " + myDbHelp.getSentJsons());
     }
 
     /**
