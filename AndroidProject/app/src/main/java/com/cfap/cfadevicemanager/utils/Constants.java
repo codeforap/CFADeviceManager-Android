@@ -23,6 +23,7 @@ package com.cfap.cfadevicemanager.utils;
  */
 public class Constants {
 
+	public static final String PKG_NAME = "com.cfap.cfadevicemanager";
 	public static final boolean DEBUG_MODE_ENABLED = false;
 	public static final boolean LOCAL_NOTIFICATIONS_ENABLED = true;
 	public static final boolean GCM_ENABLED = false;
