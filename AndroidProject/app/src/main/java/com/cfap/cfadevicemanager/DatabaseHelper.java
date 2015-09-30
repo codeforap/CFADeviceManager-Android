@@ -9,6 +9,8 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
+import com.cfap.cfadevicemanager.dbmodels.DataTrackerDBModel;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -24,7 +26,7 @@ public class DatabaseHelper extends SQLiteOpenHelper{
     private static Context myContext;
     private SQLiteDatabase myDatabase;
     private DatabaseHelper dbHelp;
-    private static DatabaseHelper mInstance;
+    protected static DatabaseHelper mInstance;
     private String TAG = "DatabaseHelper";
     static int DB_VERSION = 1;
     static final String DB_NAME = "Cfadm.sqlite";
@@ -62,6 +64,23 @@ public class DatabaseHelper extends SQLiteOpenHelper{
     private static final String COL_monthlyusageSent = "monthlyusageSent";
     private static final String COL_monthlywifiusageSent = "monthlywifiusageSent";
     private static final String COL_monthlydatausageSent = "monthlydatausageSent";
+
+
+    private static String TYPE_TEXT = " TEXT";
+    private static String TYPE_INTEGER = " INTEGER";
+
+    private static String COMMA_SEP = ",";
+
+    private static final String SQL_CREATE_APP_DATA_TRACKER_TABLE =
+            "CREATE TABLE " + DataTrackerDBModel.TABLE_NAME + " (" +
+                    DataTrackerDBModel._ID + " INTEGER PRIMARY KEY," +
+                    DataTrackerDBModel.COLUMN_NAME_APP_NAME + TYPE_TEXT + COMMA_SEP +
+                    DataTrackerDBModel.COLUMN_NAME_APP_UID + TYPE_INTEGER + COMMA_SEP +
+                    DataTrackerDBModel.COLUMN_NAME_APP_ICON + TYPE_INTEGER + COMMA_SEP +
+                    DataTrackerDBModel.COLUMN_NAME_APP_MOBILE_DATA + TYPE_TEXT + COMMA_SEP +
+                    DataTrackerDBModel.COLUMN_NAME_APP_WIFI_DATA + TYPE_TEXT + COMMA_SEP +
+                    DataTrackerDBModel.COLUMN_NAME_DAY + TYPE_TEXT + COMMA_SEP +
+                    DataTrackerDBModel.COLUMN_NAME_APP_RECENT_DATA_STAMP + TYPE_TEXT  + ")";
 
     public static synchronized DatabaseHelper getInstance(Context context) {
         if(mInstance == null) {
@@ -111,16 +130,18 @@ public class DatabaseHelper extends SQLiteOpenHelper{
             this.getReadableDatabase();
 
             try {
-
                 copyDataBase();
-
+                initDataTrackerTable();
             } catch (IOException e) {
-
                 throw new Error("Error copying database");
-
             }
         }
 
+    }
+
+    private void initDataTrackerTable() {
+        SQLiteDatabase db = getWritableDatabase();
+        db.execSQL(SQL_CREATE_APP_DATA_TRACKER_TABLE);
     }
 
     private boolean checkDataBase(){
