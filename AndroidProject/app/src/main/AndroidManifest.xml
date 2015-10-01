@@ -19,6 +19,10 @@
         android:icon="@drawable/unnamed"
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
+
+
+        <service android:name=".services.AppTrackerService" android:exported="false"/>
+
         <activity
             android:name=".MainActivity"
             android:label="@string/app_name" >
@@ -28,6 +32,19 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--Demo Activity to view data stats per each app-->
+
+        <!--<activity-->
+            <!--android:name=".DemoActivity"-->
+            <!--android:label="@string/app_name" >-->
+            <!--<intent-filter>-->
+                <!--<action android:name="android.intent.action.MAIN" />-->
+
+                <!--<category android:name="android.intent.category.LAUNCHER" />-->
+            <!--</intent-filter>-->
+        <!--</activity>-->
+
         <activity
             android:name="com.cfap.cfadevicemanager.DialogActivity"
             android:label="Message from MDM"
@@ -81,6 +98,18 @@
                 android:name="android.app.device_admin"
                 android:resource="@xml/device_admin_config" />
         </receiver>
+
+        <receiver android:name=".services.EventReceiver">
+            <intent-filter>
+                <action android:name="com.cfap.cfadevicemanager.APP_INSTALL_FIRST_TIME"/>
+                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.DATE_CHANGED"/>
+                <action android:name="android.intent.action.ACTION_SHUTDOWN"/>
+            </intent-filter>
+        </receiver>
+
+
     </application>
 
 </manifest>

@@ -21,8 +21,10 @@ android {
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
+    compile 'joda-time:joda-time:2.8.2'
     compile 'com.android.support:appcompat-v7:22.2.0'
     compile 'com.google.android.gms:play-services:7.5.0'
+    compile 'com.android.support:recyclerview-v7:23.0.1'
     compile files('libs/org.eclipse.paho.android.service-1.0.3-20150720.040716-120.jar')
     compile files('libs/org.eclipse.paho.client.mqttv3-1.0.3-20150720.040213-173.jar')
     compile files('libs/jackson-databind-2.6.0-rc3.jar')
