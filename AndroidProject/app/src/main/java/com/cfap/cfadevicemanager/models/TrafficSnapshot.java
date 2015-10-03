@@ -16,9 +16,13 @@ package com.cfap.cfadevicemanager.models;
 
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
+<<<<<<< HEAD
+import org.joda.time.DateTime;
+=======
 
 import org.joda.time.DateTime;
 
+>>>>>>> 250970c2e8e3780a150eb8aca12cfa0e24e91c94
 import java.util.HashMap;
 import java.util.Map;
 

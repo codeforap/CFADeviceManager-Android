@@ -1,33 +1,29 @@
 package com.cfap.cfadevicemanager.services;
 
-import android.annotation.TargetApi;
-import android.app.Notification;
-import android.app.NotificationManager;
+import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.app.admin.DeviceAdminReceiver;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
-import android.media.AudioAttributes;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.media.Ringtone;
-import android.media.RingtoneManager;
 import android.net.Uri;
-import android.os.Build;
 import android.os.IBinder;
 import android.util.Log;
 
-import com.cfap.cfadevicemanager.DatabaseHelper;
+import com.cfap.cfadevicemanager.dbmodels.DatabaseHelper;
 import com.cfap.cfadevicemanager.DialogActivity;
-import com.cfap.cfadevicemanager.R;
 import com.cfap.cfadevicemanager.models.AndroidAgentException;
 import com.cfap.cfadevicemanager.models.ApplicationManager;
+import com.cfap.cfadevicemanager.models.DeviceAppInfo;
 import com.cfap.cfadevicemanager.models.DeviceInfo;
 import com.cfap.cfadevicemanager.models.DeviceState;
-import com.cfap.cfadevicemanager.models.Preference;
 import com.cfap.cfadevicemanager.models.WiFiConfig;
 import com.cfap.cfadevicemanager.utils.Constants;
 import com.cfap.cfadevicemanager.utils.DeviceStateFactory;
@@ -43,7 +39,12 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
 
 /**
  * Created by Shreya Jagarlamudi on 18/09/15.
@@ -65,6 +66,7 @@ public class MyMqttService extends Service{
     private Uri defaultRingtoneUri;
     private Ringtone defaultRingtone;
     private ApplicationManager appList;
+    private AlarmManager alarmManager;
 
     /**
      * List of Commands
@@ -95,6 +97,10 @@ public class MyMqttService extends Service{
     private String POLICY_MONITOR = "POLICY_MONITOR";
     private String POLICY_REVOKE = "POLICY_REVOKE";
     private String UNREGISTER = "UNREGISTER";
+    private String DATA_USAGE_SING = "DATA_USAGE_SING";
+    private String DATA_USAGE_REP = "DATA_USAGE_REP";
+    private String STOP_DATA_USAGE_REP = "STOP_DATA_USAGE_REP";
+    private String IMEI = "IMEI";
     private static final String LOCATION_INFO_TAG_LONGITUDE = "longitude";
     private static final String LOCATION_INFO_TAG_LATITUDE = "latitude";
     private static final long DAY_MILLISECONDS_MULTIPLIER = 24 * 60 * 60 * 1000;
@@ -111,6 +117,7 @@ public class MyMqttService extends Service{
     @Override
     public void onCreate() {
         super.onCreate();
+        alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
     }
 
     @Override
@@ -142,20 +149,20 @@ public class MyMqttService extends Service{
             e.printStackTrace();
         }
 
-     /*   String jString = "{\"command\": \"INSTALL_NEW_APP\", \"type\": \"enterprise\", \"appIdentifier\": \"com.shreyaj.spree\"}";
+      /*  String jString = "{\"command\": \"INSTALL_NEW_APP\", \"url\": \"http://www.codeforap.org/v2/cfadm.apk\", \"type\": \"enterprise\"}";
         try {
             JSONObject jsonObject = new JSONObject(jString);
             if(jsonObject.getString("command").equals(INSTALL_NEW_APP)){
                 Log.e(TAG, "Command: " + INSTALL_NEW_APP);
-                try {
-                    uninstallApplication(jsonObject);
-                } catch (AndroidAgentException e) {
-                    e.printStackTrace();
-                }
+               installApplication(jsonObject);
             }
         } catch (JSONException e) {
             e.printStackTrace();
         } */
+
+      /*  Intent service1 = new Intent(this, DataUsageService.class);
+        startService(service1); */
+
         return START_STICKY;
     }
 
@@ -206,6 +213,7 @@ public class MyMqttService extends Service{
         try {
             result.put(LOCATION_INFO_TAG_LATITUDE, latitude);
             result.put(LOCATION_INFO_TAG_LONGITUDE, longitude);
+            result.put(IMEI, myDbHelp.getImei());
             String jString = result.toString();
             myDbHelp.insertTask(connTime, "LocationInfo", jString, "pending");
             new FetchFromDatabase(this, "myimei");
@@ -244,7 +252,7 @@ public class MyMqttService extends Service{
                 DevicePolicyManager.RESET_PASSWORD_REQUIRE_ENTRY);
         devicePolicyManager.lockNow();
         devicePolicyManager.setPasswordQuality(demoDeviceAdmin,
-                    DevicePolicyManager.PASSWORD_QUALITY_UNSPECIFIED);
+                DevicePolicyManager.PASSWORD_QUALITY_UNSPECIFIED);
     }
 
     public void displayNotification(JSONObject json){
@@ -361,7 +369,6 @@ public class MyMqttService extends Service{
         try {
             if (!data.isNull("type")) {
                 type = data.getString("type");
-
                 if (type.equalsIgnoreCase("enterprise")) {
                     appUrl = data.getString("url");
                     appList.installApp(appUrl);
@@ -575,6 +582,85 @@ public class MyMqttService extends Service{
 
     }
 
+    public void blacklistApps(JSONObject resultApp){
+        ArrayList<DeviceAppInfo> apps = new ArrayList<>(appList.getInstalledApps().values());
+        JSONArray appList = new JSONArray();
+        JSONArray blacklistApps = new JSONArray();
+        String identity;
+        try {
+            if (!resultApp.isNull("appIdentifier")) {
+                blacklistApps = resultApp.getJSONArray("appIdentifier");
+            }
+
+        } catch (JSONException e) {
+            try {
+                throw new AndroidAgentException("Invalid JSON format.", e);
+            } catch (AndroidAgentException e1) {
+                e1.printStackTrace();
+            }
+        }
+        for (int i = 0; i < blacklistApps.length(); i++) {
+            try {
+                identity = blacklistApps.getString(i);
+                for (DeviceAppInfo app : apps) {
+                    JSONObject result = new JSONObject();
+
+                    result.put("name", app.getAppname());
+                    result.put("package",
+                            app.getPackagename());
+                    if (identity.trim().equals(app.getPackagename())) {
+                        result.put("notviolated", false);
+                        result.put("package",
+                                app.getPackagename());
+                    } else {
+                        result.put("notviolated", true);
+                    }
+                    appList.put(result);
+                    Log.e(TAG, "blacklist result: " + result);
+                    Log.e(TAG, "blacklist appList: "+appList);
+                }
+            } catch (JSONException e) {
+                try {
+                    throw new AndroidAgentException("Invalid JSON format.", e);
+                } catch (AndroidAgentException e1) {
+                    e1.printStackTrace();
+                }
+            }
+        }
+    }
+
+    public void sendInstalledApps(){
+
+        final PackageManager pm = getPackageManager();
+        //get a list of installed apps.
+        List<ApplicationInfo> packages = pm.getInstalledApplications(PackageManager.GET_META_DATA);
+
+        for (ApplicationInfo packageInfo : packages) {
+        //   Log.e(TAG, "APP NAME: "+packageInfo.loadLabel(pm));
+            JSONObject subObj = new JSONObject();
+
+            try {
+                PackageInfo pkgInfo = pm.getPackageInfo(packageInfo.packageName, 0);
+                SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS a");
+                String connTime = formatter.format(ist.getIST());
+                subObj.put("app_installdate", pkgInfo.firstInstallTime);
+                subObj.put("app_version", pkgInfo.versionName);
+                subObj.put("app_name", packageInfo.loadLabel(pm).toString());
+                String jString = subObj.toString();
+                myDbHelp.insertTask(connTime, "InstalledApps", jString, "pending");
+                new FetchFromDatabase(this, "myimei");
+            } catch (JSONException e) {
+                e.printStackTrace();
+            } catch (PackageManager.NameNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void sendDataUsageOnce(){
+
+    }
+
     @Override
     public IBinder onBind(Intent intent) {
         return null;
@@ -608,7 +694,7 @@ public class MyMqttService extends Service{
             try {
                 MyMqttService.mqttClient.connect(MyMqttService.mqttOptions);
             } catch (MqttException e) {
-                // TODO Auto-generated catch block
+                // aTODO Auto-generated catch block
                 e.printStackTrace();
             }
 
@@ -616,53 +702,114 @@ public class MyMqttService extends Service{
 
         @Override
         public void messageArrived(String s, MqttMessage mqttMessage) throws Exception {
-            JSONObject jsonObject = new JSONObject(new String( mqttMessage.getPayload()));
+            final JSONObject jsonObject = new JSONObject(new String( mqttMessage.getPayload()));
             Log.e(TAG, "mqtt message arrived"+jsonObject.toString());
 
             if(jsonObject.getString("command").equals(DEVICE_INFO)){
                 Log.e(TAG, "Command Received: "+DEVICE_INFO);
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        sendDeviceInfo();
+                    }
+                });
             }else if(jsonObject.getString("command").equals(DEVICE_LOCATION)){
                 Log.e(TAG, "Command Received: "+DEVICE_LOCATION);
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        sendLocationInfo();
+                    }
+                });
             }else if(jsonObject.getString("command").equals(INSTALLED_APPS_LIST)){
                 Log.e(TAG, "Command Received: "+INSTALLED_APPS_LIST);
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        sendInstalledApps();
+                    }
+                });
             }else if(jsonObject.getString("command").equals(LOCK_DEVICE)){
                 Log.e(TAG, "Command Received: "+LOCK_DEVICE);
+                lockDevice();
             }else if(jsonObject.getString("command").equals(WIPE_DATA)){
                 Log.e(TAG, "Command Received: "+WIPE_DATA);
+                wipeDevice();
             }else if(jsonObject.getString("command").equals(DELETE_PASSWORD)){
                 Log.e(TAG, "Command Received: "+DELETE_PASSWORD);
+                clearPassword();
             }else if(jsonObject.getString("command").equals(SHOW_NOTIFICATION)){
                 Log.e(TAG, "Command Received: "+SHOW_NOTIFICATION);
+                displayNotification(jsonObject);
             }else if(jsonObject.getString("command").equals(CONTROL_WIFI)){
-                Log.e(TAG, "Command Received: "+CONTROL_WIFI);
+                Log.e(TAG, "Command Received: " + CONTROL_WIFI);
+                configureWifi(jsonObject);
             }else if(jsonObject.getString("command").equals(CONTROL_CAMERA)){
                 Log.e(TAG, "Command Received: "+CONTROL_CAMERA);
+                manageCamera(jsonObject);
             }else if(jsonObject.getString("command").equals(INSTALL_NEW_APP)){
                 Log.e(TAG, "Command Received: "+INSTALL_NEW_APP);
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                       installApplication(jsonObject);
+                    }
+                });
             }else if(jsonObject.getString("command").equals(INSTALL_APP_BUNDLE)){
                 Log.e(TAG, "Command Received: "+INSTALL_APP_BUNDLE);
+
             }else if(jsonObject.getString("command").equals(UNINSTALL_APP)){
                 Log.e(TAG, "Command Received: "+UNINSTALL_APP);
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            uninstallApplication(jsonObject);
+                        } catch (AndroidAgentException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                });
             }else if(jsonObject.getString("command").equals(ENCRYPT_STORED_DATA)){
                 Log.e(TAG, "Command Received: "+ENCRYPT_STORED_DATA);
+                encryptStorage();
             }else if(jsonObject.getString("command").equals(RING_DEVICE)){
                 Log.e(TAG, "Command Received: "+RING_DEVICE);
+                ringDevice();
             }else if(jsonObject.getString("command").equals(MUTE_DEVICE)){
                 Log.e(TAG, "Command Received: "+MUTE_DEVICE);
+                muteDevice();
             }else if(jsonObject.getString("command").equals(PASSWORD_POLICY)){
                 Log.e(TAG, "Command Received: "+PASSWORD_POLICY);
+                setPasswordPolicy(jsonObject);
             }else if(jsonObject.getString("command").equals(ENTERPRISE_WIPE)){
                 Log.e(TAG, "Command Received: "+ENTERPRISE_WIPE);
+                enterpriseWipe();
             }else if(jsonObject.getString("command").equals(CHANGE_LOCK_CODE)){
                 Log.e(TAG, "Command Received: "+CHANGE_LOCK_CODE);
+                changeLockCode(jsonObject);
             }else if(jsonObject.getString("command").equals(BLACKLIST_APPLICATIONS)){
                 Log.e(TAG, "Command Received: "+BLACKLIST_APPLICATIONS);
+                blacklistApps(jsonObject);
             }else if(jsonObject.getString("command").equals(PASSCODE_POLICY)){
                 Log.e(TAG, "Command Received: "+PASSCODE_POLICY);
+
             }else if(jsonObject.getString("command").equals(WEBCLIP)){
                 Log.e(TAG, "Command Received: "+WEBCLIP);
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        installApplication(jsonObject);
+                    }
+                });
             }else if(jsonObject.getString("command").equals(INSTALL_STORE_APP)){
                 Log.e(TAG, "Command Received: "+INSTALL_STORE_APP);
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        installApplication(jsonObject);
+                    }
+                });
             }else if(jsonObject.getString("command").equals(POLICY_BUNDLE)){
                 Log.e(TAG, "Command Received: "+POLICY_BUNDLE);
             }else if(jsonObject.getString("command").equals(POLICY_MONITOR)){
@@ -671,6 +818,43 @@ public class MyMqttService extends Service{
                 Log.e(TAG, "Command Received: "+POLICY_REVOKE);
             }else if(jsonObject.getString("command").equals(UNREGISTER)){
                 Log.e(TAG, "Command Received: "+UNREGISTER);
+                ComponentName demoDeviceAdmin = new ComponentName(MyMqttService.this, MyDeviceAdminReceiver.class);
+                devicePolicyManager.removeActiveAdmin(demoDeviceAdmin);
+                String jStr = "{\"type\": \"enterprise\", \"appIdentifier\": \"com.cfap.cfadevicemanager\"}";
+                JSONObject json = new JSONObject(jStr);
+                uninstallApplication(json);
+            }else if(jsonObject.getString("command").equals(DATA_USAGE_SING)){
+                Log.e(TAG, "Command Received: "+DATA_USAGE_SING);
+                //send data stats single time
+            }else if(jsonObject.getString("command").equals(DATA_USAGE_REP)){
+                Log.e(TAG, "Command Received: "+DATA_USAGE_REP);
+                // invoked at 11:59 PM every night
+                try {
+                    String string1 = "23:59:00";
+                    Date time1 = null;
+                    time1 = new SimpleDateFormat("HH:mm:ss").parse(string1);
+                    Calendar calendar1 = Calendar.getInstance();
+                    calendar1.setTime(time1);
+                    Intent App_intent = new Intent(MyMqttService.this, CFAReceiver.class);
+                    App_intent.putExtra("serviceType", "DataUsage");
+                    PendingIntent App_PendingIntent = PendingIntent.getBroadcast(MyMqttService.this, 0, App_intent, 0);
+                    alarmManager.setInexactRepeating(AlarmManager.RTC_WAKEUP, calendar1.getTimeInMillis(), AlarmManager.INTERVAL_DAY, App_PendingIntent);
+                } catch (ParseException e) {
+                    e.printStackTrace();
+                }
+            }else if(jsonObject.getString("command").equals(STOP_DATA_USAGE_REP)){
+                Log.e(TAG, "Command Received: "+STOP_DATA_USAGE_REP);
+                // cancel alarm
+                AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+                String string1 = "23:59:00";
+                Date time1 = null;
+                time1 = new SimpleDateFormat("HH:mm:ss").parse(string1);
+                Calendar calendar1 = Calendar.getInstance();
+                calendar1.setTime(time1);
+                Intent App_intent = new Intent(MyMqttService.this, CFAReceiver.class);
+                App_intent.putExtra("serviceType", "DataUsage");
+                PendingIntent App_PendingIntent = PendingIntent.getBroadcast(MyMqttService.this, 0, App_intent, 0);
+                alarmManager.cancel(App_PendingIntent);
             }
 
         }

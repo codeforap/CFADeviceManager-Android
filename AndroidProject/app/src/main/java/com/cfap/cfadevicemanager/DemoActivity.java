@@ -17,6 +17,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.cfap.cfadevicemanager.dbmodels.DataTrackerDBModel;
+<<<<<<< HEAD
+import com.cfap.cfadevicemanager.dbmodels.DatabaseHelper;
+=======
+>>>>>>> 250970c2e8e3780a150eb8aca12cfa0e24e91c94
 import com.cfap.cfadevicemanager.models.AppTrafficRecord;
 import com.cfap.cfadevicemanager.services.AppTrackerService;
 import com.cfap.cfadevicemanager.utils.Intents;
@@ -84,7 +88,11 @@ public class DemoActivity extends AppCompatActivity{
         public ViewHolder onCreateViewHolder(ViewGroup parent, int i) {
             View itemView = LayoutInflater.from(parent.getContext()).
                     inflate(R.layout.list_item, parent, false);
+<<<<<<< HEAD
+            return new ViewHolder(itemView);
+=======
             return new MyAdapter.ViewHolder(itemView);
+>>>>>>> 250970c2e8e3780a150eb8aca12cfa0e24e91c94
         }
 
         @Override
