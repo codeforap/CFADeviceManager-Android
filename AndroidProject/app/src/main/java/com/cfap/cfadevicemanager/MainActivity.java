@@ -1,21 +1,18 @@
 package com.cfap.cfadevicemanager;
 
+import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.app.admin.DevicePolicyManager;
-import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
-import android.location.LocationManager;
-import android.net.wifi.WifiManager;
 import android.os.Bundle;
-import android.support.v4.content.LocalBroadcastManager;
-import android.support.v7.app.AppCompatActivity;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -24,26 +21,28 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.cfap.cfadevicemanager.dbmodels.DatabaseHelper;
-import com.cfap.cfadevicemanager.services.AppTrackerService;
 import com.cfap.cfadevicemanager.services.CFAReceiver;
 import com.cfap.cfadevicemanager.services.GPSTracker;
 import com.cfap.cfadevicemanager.services.ISTDateTime;
+import com.cfap.cfadevicemanager.services.LocationDetector;
 import com.cfap.cfadevicemanager.services.MyDeviceAdminReceiver;
 import com.cfap.cfadevicemanager.services.MyMqttService;
 import com.cfap.cfadevicemanager.services.SendToServer;
 import com.cfap.cfadevicemanager.utils.Constants;
-import com.cfap.cfadevicemanager.utils.Intents;
 
+import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 
 /**
  * Created by Shreya Jagarlamudi on 27/07/15.
@@ -55,7 +54,7 @@ import java.text.SimpleDateFormat;
  * This class starts the MQTT service on launch first time we open the app ever and also contains UI elements to display
  * messages to the user. The UI will be updated from our CfaService class using Broadcast Receiver.
  */
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
 
     private String TAG = "MainActivity";
    // private Intent intent;
@@ -83,20 +82,13 @@ public class MainActivity extends AppCompatActivity {
     private String KEY_Type = "type";
     private String KEY_Status = "connStatus";
     private String KEY_Location = "location";
-    private String KEY_BLUETOOTH = "bluetoothStatus";
-    private String KEY_GPS_STATUS = "gpsStatus";
-    private String KEY_WIFI_TETHERING = "tetheringWifi";
-    private String KEY_USB_TETHERING = "tetheringUsb";
-    private String KEY_BLUETOOTH_TETHERING = "tetheringBluetooth";
-    private String KEY_WIFI_STATUS = "wifiStatus";
-    private String KEY_MOBILE_DATA_STATUS = "mobileDataStatus";
 
     private int LOC_INTERVAL = (60000)*20; //20 minutes
     private int APPUSAGE_INTERVAL = (60000)*60*24; //24 hours
-    private int FOREGROUND_INTERVAL = 3000; // 3 seconds
+    private int FOREGROUND_INTERVAL = 5000; // 5 seconds
     private int DATAUSAGE_INTERVAL = 30000; // 30 seconds
     private DatabaseHelper myDbHelp;
-   // private LocationDetector locationDetector;
+    private LocationDetector locationDetector;
     private String imei = "";
     private String Battery_Status = "";
     private SendToServer sendMqtt;
@@ -128,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
                 new Intent("StartupReceiver_Manual_Start"));
 
         Battery_Status = gs.getBatteryStatus();
-     //   locationDetector = new LocationDetector(this);
+        locationDetector = new LocationDetector(this);
 
         myDbHelp = DatabaseHelper.getInstance(getApplicationContext());
         try {
@@ -213,9 +205,6 @@ public class MainActivity extends AppCompatActivity {
                 JSONArray jArray = new JSONArray();
                 JSONArray batteryArray = new JSONArray();
                 try {
-                    json.put(KEY_WIFI_TETHERING, wifiTetheringStatus());
-                    json.put(KEY_BLUETOOTH, bluetoothStatus());
-                    json.put(KEY_GPS_STATUS, gpsStatus());
                     batteryArray.put(Battery_Status.substring(0, nthOccurrence(Battery_Status, '%', 0)));
                     batteryArray.put(Battery_Status.substring(nthOccurrence(Battery_Status, '%', 0) + 1, nthOccurrence(Battery_Status, ' ', 2)));
                     batteryArray.put(Battery_Status.substring(nthOccurrence(Battery_Status, ' ', 2) + 1, nthOccurrence(Battery_Status, ' ', 5)));
@@ -243,7 +232,7 @@ public class MainActivity extends AppCompatActivity {
 
                     try {
 
-                        sendMqtt = new SendToServer(MainActivity.this, json, "APGOV");
+                        sendMqtt = new SendToServer(MainActivity.this, json, "Details");
                         myDbHelp.insertRegistered(1, imei);
                         myDbHelp.updateTaskStatus(jString, "sent");
                         Log.e(TAG, "Registration json: " + jString);
@@ -268,7 +257,7 @@ public class MainActivity extends AppCompatActivity {
 
 
                        // invoked at 11:59 PM every night
-                  /*      try {
+                        try {
                             String string1 = "23:59:00";
                             Date time1 = null;
                             time1 = new SimpleDateFormat("HH:mm:ss").parse(string1);
@@ -280,15 +269,15 @@ public class MainActivity extends AppCompatActivity {
                             alarmManager.setInexactRepeating(AlarmManager.RTC_WAKEUP, calendar1.getTimeInMillis(), AlarmManager.INTERVAL_DAY, App_PendingIntent);
                         } catch (ParseException e) {
                             e.printStackTrace();
-                        } */
+                        }
 
 
                         // Uncomment this if you only want your app and system installed apps to open. The user will not be able to open any toher apps
-                     /*   Intent Foreground_intent = new Intent(MainActivity.this, CFAReceiver.class);
+                    /*    Intent Foreground_intent = new Intent(MainActivity.this, CFAReceiver.class);
                         Foreground_intent.putExtra("serviceType", "Foreground");
                         PendingIntent Fore_PendingIntent = PendingIntent.getBroadcast(MainActivity.this, 2, Foreground_intent, 0);
                         alarmManager.setInexactRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 60000, FOREGROUND_INTERVAL, Fore_PendingIntent);
-*/
+                    */
 
                     } catch (MqttException e) {
                         myDbHelp.insertRegistered(0, imei);
@@ -337,71 +326,14 @@ public class MainActivity extends AppCompatActivity {
         return pos;
     }
 
-    public String bluetoothStatus(){
-        BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        if (mBluetoothAdapter == null) {
-            // Device does not support Bluetooth
-            return "notsupported";
-        } else {
-            if (!mBluetoothAdapter.isEnabled()) {
-                // Bluetooth is not enable :)
-                return "disabled";
-            }else{
-                return "enabled";
-            }
-        }
-    }
-
-    public String gpsStatus(){
-        PackageManager packMan = getPackageManager();
-        if(packMan.hasSystemFeature(PackageManager.FEATURE_LOCATION_GPS)==true){
-            LocationManager manager = (LocationManager)getSystemService(Context.LOCATION_SERVICE);
-            if(manager.isProviderEnabled(LocationManager.GPS_PROVIDER)==true){
-                return "enabled";
-            }else{
-                return "disabled";
-            }
-        }else{
-            return "notSupported";
-        }
-    }
-
-    public boolean wifiTetheringStatus() {
-        WifiManager wifi = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-        Method[] wmMethods = wifi.getClass().getDeclaredMethods();
-        for (Method method : wmMethods) {
-            if (method.getName().equals("isWifiApEnabled")) {
-                try {
-                    boolean isWifiAPenabled = (boolean) method.invoke(wifi);
-                    return isWifiAPenabled;
-                } catch (IllegalArgumentException e) {
-                    e.printStackTrace();
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                } catch (InvocationTargetException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-        return false;
-    }
-
     @Override
     protected void onResume() {
         super.onResume();
-        Intent i = new Intent(this, AppTrackerService.class);
-        i.setAction("APP_DATA_REFRESH");
-        startService(i);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
     }
 
 }

@@ -5,8 +5,9 @@ package com.cfap.cfadevicemanager.services;
  */
 
 import android.content.Context;
+import android.util.Log;
 
-import com.cfap.cfadevicemanager.dbmodels.DatabaseHelper;
+import com.cfap.cfadevicemanager.DatabaseHelper;
 
 import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttException;

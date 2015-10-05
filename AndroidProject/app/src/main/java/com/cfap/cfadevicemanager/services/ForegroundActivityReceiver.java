@@ -24,30 +24,15 @@ public class ForegroundActivityReceiver extends BroadcastReceiver{
     private String TAG = "ForegroundActivityReceiver";
     final int PROCESS_STATE_TOP = 2;
     private Context ctx;
-    boolean connectedToCellularData;
 
     @Override
     public void onReceive(Context context, Intent intent) {
         ctx = context;
-        connectedToCellularData = connToMobile();
-        if (connectedToCellularData==true){
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT_WATCH) {
+            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.KITKAT_WATCH) {
                 foregroundTaskPostLollipop();
             } else {
                 foregroundTaskPre();
             }
-        }
-    }
-
-    public boolean connToMobile(){
-        final ConnectivityManager connMgr = (ConnectivityManager) ctx.getSystemService(Context.CONNECTIVITY_SERVICE);
-        final android.net.NetworkInfo mobile = connMgr.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
-        Log.e(TAG, "connToMobile: "+mobile.isConnected());
-        if (mobile.isConnected()) {
-            return true;
-        }else{
-            return false;
-        }
     }
 
     public void foregroundTaskPostLollipop(){
@@ -81,7 +66,7 @@ public class ForegroundActivityReceiver extends BroadcastReceiver{
                                             ApplicationInfo.FLAG_SYSTEM)!=0){
                                // Toast.makeText(ctx, "No applications are foreground at this time!", 3).show();
                             }else{
-                                Toast.makeText(ctx, "You cannot access this application on cellular data plan", 3).show();
+                                Toast.makeText(ctx, "You do not have access to this application", 3).show();
                                 Intent i = new Intent();
                                 i.setAction(Intent.ACTION_MAIN);
                                 i.addCategory(Intent.CATEGORY_HOME);
@@ -111,7 +96,7 @@ public class ForegroundActivityReceiver extends BroadcastReceiver{
                 isSystemApp(activePackages[0])==true){
            // Toast.makeText(ctx, "No applications are foreground at this time!", 3).show();
         }else{
-            Toast.makeText(ctx, "You cannot access this application on cellular data plan", 3).show();
+            Toast.makeText(ctx, "You do not have access to this application", 3).show();
             Intent i = new Intent();
             i.setAction(Intent.ACTION_MAIN);
             i.addCategory(Intent.CATEGORY_HOME);

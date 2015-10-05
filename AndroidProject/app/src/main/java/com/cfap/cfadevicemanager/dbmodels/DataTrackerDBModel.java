@@ -2,11 +2,8 @@ package com.cfap.cfadevicemanager.dbmodels;
 
 import android.content.Context;
 import android.provider.BaseColumns;
-<<<<<<< HEAD
-=======
 
 import com.cfap.cfadevicemanager.DataTrackerDBHelper;
->>>>>>> 250970c2e8e3780a150eb8aca12cfa0e24e91c94
 import com.cfap.cfadevicemanager.models.AppTrafficRecord;
 import com.cfap.cfadevicemanager.models.TrafficSnapshot;
 

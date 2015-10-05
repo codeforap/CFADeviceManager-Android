@@ -4,15 +4,26 @@ package com.cfap.cfadevicemanager.services;
  * Created by Shreya Jagarlamudi on 30/07/15.
  */
 
+import android.app.ActivityManager;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.os.Build;
 import android.util.Log;
+import android.widget.Toast;
 
-import com.cfap.cfadevicemanager.dbmodels.DatabaseHelper;
+import com.cfap.cfadevicemanager.DatabaseHelper;
 import com.cfap.cfadevicemanager.GlobalState;
+
+import java.lang.reflect.Field;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
 
 /**
  * This class continuously listens for network connection. If we are connected to the internet, it sets the global
@@ -24,7 +35,7 @@ public class NetworkStateReceiver extends BroadcastReceiver {
     GlobalState gs;
     private DatabaseHelper myDbHelp;
     final int PROCESS_STATE_TOP = 2;
-    private static Context ctx;
+    private Context ctx;
 
     public void onReceive(Context context, Intent intent) {
         Log.e(TAG, "Network connectivity change");
@@ -40,7 +51,7 @@ public class NetworkStateReceiver extends BroadcastReceiver {
                 if(myDbHelp.getPendingJsons().size()>0) new FetchFromDatabase(context, "myimei");
             }
         }
-        if(intent.getExtras().getBoolean(ConnectivityManager.EXTRA_NO_CONNECTIVITY, Boolean.FALSE)) {
+        if(intent.getExtras().getBoolean(ConnectivityManager.EXTRA_NO_CONNECTIVITY,Boolean.FALSE)) {
             Log.d(TAG, "There's no network connectivity");
             gs.setConnStatus("false");
         }
