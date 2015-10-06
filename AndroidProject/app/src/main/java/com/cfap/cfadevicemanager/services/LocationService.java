@@ -4,13 +4,10 @@ import android.app.IntentService;
 import android.content.Intent;
 import android.util.Log;
 
-import com.cfap.cfadevicemanager.DatabaseHelper;
+import com.cfap.cfadevicemanager.dbmodels.DatabaseHelper;
 import com.cfap.cfadevicemanager.GlobalState;
 import com.cfap.cfadevicemanager.utils.Constants;
 
-import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttException;
-import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -25,7 +22,7 @@ public class LocationService extends IntentService {
     private String TAG = "LocationService";
     private DatabaseHelper myDbHelp;
     GlobalState gs;
-    private LocationDetector locationDetector;
+  //  private LocationDetector locationDetector;
     private GPSTracker gps;
 
     private String KEY_IMEI = "imei";
@@ -48,7 +45,7 @@ public class LocationService extends IntentService {
         super.onCreate();
         gs = (GlobalState) getApplication();
         myDbHelp = DatabaseHelper.getInstance(this);
-        locationDetector = new LocationDetector(this);
+      //  locationDetector = new LocationDetector(this);
         gps = new GPSTracker(getApplicationContext());
     }
 
@@ -93,7 +90,7 @@ public class LocationService extends IntentService {
             String jString = json.toString();
             myDbHelp.insertTask(connTime, "LocUpdate", jString, "pending");
             Log.e(TAG, "Location Update: " + jString);
-            new FetchFromDatabase(this, "Details");
+            new FetchFromDatabase(this, "APGOV");
 
         } catch (JSONException e) {
             e.printStackTrace();

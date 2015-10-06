@@ -45,7 +45,6 @@ public class AppTrackerService extends IntentService {
             System.out.println("FIRST TIME APP INSTALLED");
         }
 
-
         ConnectivityManager connManager = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo mWifi = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
         SharedPrefUtils.updateCurrentWifiStatus(mWifi.isConnected(), getApplicationContext());

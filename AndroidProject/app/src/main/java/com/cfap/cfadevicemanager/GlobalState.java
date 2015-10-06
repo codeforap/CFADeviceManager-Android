@@ -7,9 +7,7 @@ import android.content.IntentFilter;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.telephony.TelephonyManager;
-
-import com.cfap.cfadevicemanager.utils.Intents;
-import com.cfap.cfadevicemanager.utils.SharedPrefUtils;
+import android.widget.EditText;
 
 /**
  * Created by Shreya on 27/07/15.
@@ -24,13 +22,6 @@ public class GlobalState extends Application{
     private String jStr = "";
     private String connStatus="";
 
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        if (SharedPrefUtils.isFirstTimeInstall(getApplicationContext())) {
-            sendBroadcast(new Intent(Intents.APP_INSTALL_EVENT));
-        }
-    }
 
     public void setJStr(String js){
         jStr = js;

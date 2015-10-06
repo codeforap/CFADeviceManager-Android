@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.cfap.cfadevicemanager" >
+    package="com.cfap.cfadevicemanager"
+    android:versionCode="1"
+    android:versionName="1">
 
 
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
@@ -12,6 +14,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.GET_TASKS"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
 
     <application
         android:name="com.cfap.cfadevicemanager.GlobalState"
@@ -19,10 +22,6 @@
         android:icon="@drawable/unnamed"
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
-
-
-        <service android:name=".services.AppTrackerService" android:exported="false"/>
-
         <activity
             android:name=".MainActivity"
             android:label="@string/app_name" >
@@ -32,19 +31,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!--Demo Activity to view data stats per each app-->
-
-        <!--<activity-->
-            <!--android:name=".DemoActivity"-->
-            <!--android:label="@string/app_name" >-->
-            <!--<intent-filter>-->
-                <!--<action android:name="android.intent.action.MAIN" />-->
-
-                <!--<category android:name="android.intent.category.LAUNCHER" />-->
-            <!--</intent-filter>-->
-        <!--</activity>-->
-
         <activity
             android:name="com.cfap.cfadevicemanager.DialogActivity"
             android:label="Message from MDM"
@@ -59,13 +45,7 @@
                 <action android:name="com.cfap.cfadevicemanager.LocationService" />
             </intent-filter>
         </service>
-        <service
-            android:enabled="true"
-            android:name=".services.AppUsageService">
-            <intent-filter>
-                <action android:name="com.cfap.cfadevicemanager.AppUsageService" />
-            </intent-filter>
-        </service>
+
         <receiver android:name=".services.CFAReceiver">
             <intent-filter>
                 <category android:name="android.intent.category.DEFAULT" />
@@ -75,6 +55,12 @@
             <intent-filter>
                 <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
                 <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
+        <receiver android:name=".services.BootCompleteReceiver">
+            <intent-filter>
+                <category android:name="android.intent.category.DEFAULT" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
         <receiver android:name=".services.ForegroundActivityReceiver">
@@ -98,18 +84,6 @@
                 android:name="android.app.device_admin"
                 android:resource="@xml/device_admin_config" />
         </receiver>
-
-        <receiver android:name=".services.EventReceiver">
-            <intent-filter>
-                <action android:name="com.cfap.cfadevicemanager.APP_INSTALL_FIRST_TIME"/>
-                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
-                <action android:name="android.intent.action.DATE_CHANGED"/>
-                <action android:name="android.intent.action.ACTION_SHUTDOWN"/>
-            </intent-filter>
-        </receiver>
-
-
     </application>
 
 </manifest>
