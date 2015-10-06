@@ -164,27 +164,17 @@ public class Functions {
             manageCamera(jsonObject);
         }else if(command.equals(INSTALL_NEW_APP)){
             Log.e(TAG, "Command Received: "+INSTALL_NEW_APP);
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    installApplication(jsonObject);
-                }
-            });
+            installApplication(jsonObject);
         }else if(command.equals(INSTALL_APP_BUNDLE)){
             Log.e(TAG, "Command Received: "+INSTALL_APP_BUNDLE);
 
         }else if(command.equals(UNINSTALL_APP)){
             Log.e(TAG, "Command Received: "+UNINSTALL_APP);
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-                        uninstallApplication(jsonObject);
-                    } catch (AndroidAgentException e) {
-                        e.printStackTrace();
-                    }
-                }
-            });
+            try {
+                uninstallApplication(jsonObject);
+            } catch (AndroidAgentException e) {
+                e.printStackTrace();
+            }
         }else if(command.equals(ENCRYPT_STORED_DATA)){
             Log.e(TAG, "Command Received: "+ENCRYPT_STORED_DATA);
             try {
@@ -215,20 +205,10 @@ public class Functions {
 
         }else if(command.equals(WEBCLIP)){
             Log.e(TAG, "Command Received: "+WEBCLIP);
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    installApplication(jsonObject);
-                }
-            });
+            installApplication(jsonObject);
         }else if(command.equals(INSTALL_STORE_APP)){
             Log.e(TAG, "Command Received: "+INSTALL_STORE_APP);
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    installApplication(jsonObject);
-                }
-            });
+            installApplication(jsonObject);
         }else if(command.equals(POLICY_BUNDLE)){
             Log.e(TAG, "Command Received: "+POLICY_BUNDLE);
         }else if(command.equals(POLICY_MONITOR)){

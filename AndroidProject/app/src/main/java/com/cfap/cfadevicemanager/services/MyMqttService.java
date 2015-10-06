@@ -16,6 +16,7 @@ import android.media.Ringtone;
 import android.net.Uri;
 import android.os.IBinder;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.cfap.cfadevicemanager.dbmodels.DatabaseHelper;
 import com.cfap.cfadevicemanager.DialogActivity;
@@ -51,7 +52,7 @@ import java.util.List;
  * Created by Shreya Jagarlamudi on 18/09/15.
  */
 public class MyMqttService extends Service{
-
+/*
     private String TAG = "MyMqttService";
     private DatabaseHelper myDbHelp;
     private ISTDateTime ist;
@@ -67,7 +68,7 @@ public class MyMqttService extends Service{
     private Uri defaultRingtoneUri;
     private Ringtone defaultRingtone;
     private ApplicationManager appList;
-    private AlarmManager alarmManager;
+    private AlarmManager alarmManager; */
 
     public MyMqttService(){
 
@@ -77,7 +78,49 @@ public class MyMqttService extends Service{
        // this.context = c;
     }
 
+    public static final String URL = "tcp://208.74.179.90:1883";
+    //public static final String URL = "tcp://test.mosquitto.org:1883";
+    public String clientId = "3453641234";
+    public static final String TOPIC = "myimei";
+    public static MqttClient mqttClient;
+
+
+    public IBinder onBind(Intent intent) {
+        return null;
+
+    }
+
     @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        try {
+            mqttClient = new MqttClient(URL, clientId, new MemoryPersistence());
+            System.out.println("YES1");
+            mqttClient.setCallback(new PushCallback(this));
+            System.out.println("YES2");
+            mqttClient.connect();
+            System.out.println("YES3");
+            mqttClient.subscribe(TOPIC);
+            System.out.println("YES4");
+
+       /*     String jString = "{\"command\": \"INSTALL_NEW_APP\", \"url\": \"http://www.codeforap.org/Spree.apk\", \"type\": \"enterprise\"}";
+            try {
+                JSONObject jsonObject = new JSONObject(jString);
+                if(jsonObject.getString("command").equals("INSTALL_NEW_APP")){
+                    Log.e("MyMqttService", "Command: " + "INSTALL_NEW_APP");
+                    new Functions(MyMqttService.this, jsonObject);
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            } */
+
+        } catch (MqttException e) {
+            Toast.makeText(getApplicationContext(), "Something went wrong!" + e.getMessage(), Toast.LENGTH_LONG).show();
+            e.printStackTrace();
+        }
+        return START_STICKY;
+    }
+
+    /* @Override
     public void onCreate() {
         super.onCreate();
         alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
@@ -123,8 +166,6 @@ public class MyMqttService extends Service{
             e.printStackTrace();
         }
 
-      /*  Intent service1 = new Intent(this, DataUsageService.class);
-        startService(service1); */
 
         return START_STICKY;
     }
@@ -178,5 +219,5 @@ public class MyMqttService extends Service{
         public void deliveryComplete(IMqttDeliveryToken iMqttDeliveryToken) {
             Log.e(TAG, "mqtt delivery complete");
         }
-    }
+    } */
 }
