@@ -1,7 +1,7 @@
 package com.cfap.cfadevicemanager.services;
 
 /**
- * Created by anilreddy on 14/6/15.
+ * Created by Shreya Jagarlamudi on 14/6/15.
  */
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -9,6 +9,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
+import android.util.Log;
 
 import com.cfap.cfadevicemanager.utils.Functions;
 
@@ -30,7 +31,11 @@ public class PushCallback implements MqttCallback {
 
     @Override
     public void connectionLost(Throwable throwable) {
-
+        //restarts Mqtt service which inturn reconnects and subscribes to Mqtt broker & topic
+        Log.e("PushCallBack", "connectionLost in callBack");
+      /*  Intent serviceIntent = new Intent(context, MyMqttService.class);
+        context.stopService(serviceIntent);
+        context.startService(serviceIntent); */
     }
 
     @Override

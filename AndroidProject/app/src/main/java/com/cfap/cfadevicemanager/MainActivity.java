@@ -9,6 +9,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.LocationManager;
@@ -34,6 +35,17 @@ import com.cfap.cfadevicemanager.services.MyMqttService;
 import com.cfap.cfadevicemanager.services.SendToServer;
 import com.cfap.cfadevicemanager.utils.Constants;
 import com.cfap.cfadevicemanager.utils.Intents;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.common.api.Status;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.LocationSettingsRequest;
+import com.google.android.gms.location.LocationSettingsResult;
+import com.google.android.gms.location.LocationSettingsStates;
+import com.google.android.gms.location.LocationSettingsStatusCodes;
 
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.json.JSONArray;
@@ -55,9 +67,10 @@ import java.text.SimpleDateFormat;
  * This class starts the MQTT service on launch first time we open the app ever and also contains UI elements to display
  * messages to the user. The UI will be updated from our CfaService class using Broadcast Receiver.
  */
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener{
 
     private String TAG = "MainActivity";
+    GoogleApiClient googleApiClient;
    // private Intent intent;
     private ImageView logoview;
     private TextView nameview;
@@ -133,10 +146,16 @@ public class MainActivity extends AppCompatActivity {
         myDbHelp = DatabaseHelper.getInstance(getApplicationContext());
         try {
             myDbHelp.createDataBase();
+            imei = gs.getDeviceImei();
+            myDbHelp.insertImei(imei);
         } catch (IOException e) {
             // TODO Auto-generated catch block;
             e.printStackTrace();
         }
+
+        Intent serviceIntent = new Intent(this, MyMqttService.class);
+        serviceIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        startService(serviceIntent);
 
         logoview = (ImageView) findViewById(R.id.logoview);
         nameview = (TextView) findViewById(R.id.nameview);
@@ -161,6 +180,57 @@ public class MainActivity extends AppCompatActivity {
             submit.setVisibility(View.GONE);
             maintv.setVisibility(View.VISIBLE);
             maintv.setText("Your device is now registered with the Government of Andhra Pradesh, India");
+            if (googleApiClient == null) {
+                googleApiClient = new GoogleApiClient.Builder(this)
+                        .addApi(LocationServices.API)
+                        .addConnectionCallbacks(this)
+                        .addOnConnectionFailedListener(this).build();
+                googleApiClient.connect();
+                LocationRequest locationRequest = LocationRequest.create();
+                locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+                locationRequest.setInterval(30 * 1000);
+                locationRequest.setFastestInterval(5 * 1000);
+                LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
+                        .addLocationRequest(locationRequest);
+
+                //**************************
+                builder.setAlwaysShow(true); //this is the key ingredient
+                //**************************
+                PendingResult<LocationSettingsResult> result =
+                        LocationServices.SettingsApi.checkLocationSettings(googleApiClient, builder.build());
+                result.setResultCallback(new ResultCallback<LocationSettingsResult>() {
+                    @Override
+                    public void onResult(LocationSettingsResult result) {
+                        final Status status = result.getStatus();
+                        final LocationSettingsStates state = result.getLocationSettingsStates();
+                        switch (status.getStatusCode()) {
+                            case LocationSettingsStatusCodes.SUCCESS:
+                                // All location settings are satisfied. The client can initialize location
+                                // requests here.
+                                break;
+                            case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
+                                // Location settings are not satisfied. But could be fixed by showing the user
+                                // a dialog.
+                                try {
+                                    // Show the dialog by calling startResolutionForResult(),
+                                    // and check the result in onActivityResult().
+                                    status.startResolutionForResult(
+                                            MainActivity.this, 1000);
+                                } catch (IntentSender.SendIntentException e) {
+                                    // Ignore the error.
+                                }
+                                break;
+                            case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
+                                // Location settings are not satisfied. However, we have no way to fix the
+                                // settings so we won't show the dialog.
+                                break;
+                        }
+                    }
+                });
+            }
+          /*  Intent serviceIntent = new Intent(this, MyMqttService.class);
+            serviceIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startService(serviceIntent); */
         }
 
         submit.setOnClickListener(new View.OnClickListener() {
@@ -192,6 +262,7 @@ public class MainActivity extends AppCompatActivity {
                     });
                     t.start();
 
+
                 } else{
                     usernameet.setText("");
                     passwordet.setText("");
@@ -202,8 +273,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void register(){
-        imei = gs.getDeviceImei();
-        myDbHelp.insertImei(imei);
         if(myDbHelp.getRegistered(imei)==0) {
             SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy hh:mm:ss.SSS a");
             ISTDateTime ist = new ISTDateTime();
@@ -241,10 +310,16 @@ public class MainActivity extends AppCompatActivity {
                     String jString = json.toString();
                     myDbHelp.insertTask(connTime, "Registration", jString, "pending");
 
-                    try {
+               //     try {
 
-                        sendMqtt = new SendToServer(MainActivity.this, json, "APGOV");
-                        myDbHelp.insertRegistered(1, imei);
+                     //   sendMqtt = new SendToServer(MainActivity.this, json, "APGOV");
+                    try {
+                        MyMqttService.publishToServer(json, "APGOV");
+                    } catch (MqttException e) {
+                        e.printStackTrace();
+                    }
+
+                    myDbHelp.insertRegistered(1, imei);
                         myDbHelp.updateTaskStatus(jString, "sent");
                         Log.e(TAG, "Registration json: " + jString);
 
@@ -254,10 +329,6 @@ public class MainActivity extends AppCompatActivity {
                                 maintv.setText("Your device is now registered with the Government of Andhra Pradesh, India");
                             }
                         });
-
-                        Intent serviceIntent = new Intent(this, MyMqttService.class);
-                        // serviceIntent.setAction("com.cfap.cfadevicemanager.MqttService");
-                        startService(serviceIntent);
 
                         AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 
@@ -290,7 +361,56 @@ public class MainActivity extends AppCompatActivity {
                         alarmManager.setInexactRepeating(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + 60000, FOREGROUND_INTERVAL, Fore_PendingIntent);
 */
 
-                    } catch (MqttException e) {
+                        if (googleApiClient == null) {
+                            googleApiClient = new GoogleApiClient.Builder(this)
+                                    .addApi(LocationServices.API)
+                                    .addConnectionCallbacks(this)
+                                    .addOnConnectionFailedListener(this).build();
+                            googleApiClient.connect();
+                            LocationRequest locationRequest = LocationRequest.create();
+                            locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+                            locationRequest.setInterval(30 * 1000);
+                            locationRequest.setFastestInterval(5 * 1000);
+                            LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
+                                    .addLocationRequest(locationRequest);
+
+                            //**************************
+                            builder.setAlwaysShow(true); //this is the key ingredient
+                            //**************************
+                            PendingResult<LocationSettingsResult> result =
+                                    LocationServices.SettingsApi.checkLocationSettings(googleApiClient, builder.build());
+                            result.setResultCallback(new ResultCallback<LocationSettingsResult>() {
+                                @Override
+                                public void onResult(LocationSettingsResult result) {
+                                    final Status status = result.getStatus();
+                                    final LocationSettingsStates state = result.getLocationSettingsStates();
+                                    switch (status.getStatusCode()) {
+                                        case LocationSettingsStatusCodes.SUCCESS:
+                                            // All location settings are satisfied. The client can initialize location
+                                            // requests here.
+                                            break;
+                                        case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
+                                            // Location settings are not satisfied. But could be fixed by showing the user
+                                            // a dialog.
+                                            try {
+                                                // Show the dialog by calling startResolutionForResult(),
+                                                // and check the result in onActivityResult().
+                                                status.startResolutionForResult(
+                                                        MainActivity.this, 1000);
+                                            } catch (IntentSender.SendIntentException e) {
+                                                // Ignore the error.
+                                            }
+                                            break;
+                                        case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
+                                            // Location settings are not satisfied. However, we have no way to fix the
+                                            // settings so we won't show the dialog.
+                                            break;
+                                    }
+                                }
+                            });
+                        }
+
+                   /* } catch (MqttException e) {
                         myDbHelp.insertRegistered(0, imei);
                         Log.e(TAG, "MQTT EXCEPTION");
                         runOnUiThread(new Runnable() {
@@ -308,8 +428,9 @@ public class MainActivity extends AppCompatActivity {
                         e.printStackTrace();
                     }
 
+                }*/
 
-                } catch (JSONException e) {
+            } catch (JSONException e) {
                     myDbHelp.insertRegistered(0, imei);
                     Log.e(TAG, "JSON EXCEPTION");
                     runOnUiThread(new Runnable() {
@@ -326,14 +447,13 @@ public class MainActivity extends AppCompatActivity {
                     });
                     e.printStackTrace();
                 }
-
-            }
-    }
+    }}
 
     public static int nthOccurrence(String str, char c, int n) {
         int pos = str.indexOf(c, 0);
-        while (n-- > 0 && pos != -1)
-            pos = str.indexOf(c, pos+1);
+        while (n-- > 0 && pos != -1) {
+            pos = str.indexOf(c, pos + 1);
+        }
         return pos;
     }
 
@@ -404,4 +524,18 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
+    @Override
+    public void onConnected(Bundle bundle) {
+
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+
+    }
+
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {
+
+    }
 }

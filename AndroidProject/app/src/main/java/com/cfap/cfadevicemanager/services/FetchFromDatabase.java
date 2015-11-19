@@ -34,11 +34,14 @@ public class FetchFromDatabase {
                 try {
                     String s = pendingTasks.get(i);
                     JSONObject jObj = new JSONObject(s);
-                    SendToServer sts = new SendToServer(context, jObj, topic);
+                  //  SendToServer sts = new SendToServer(context, jObj, topic);
+                    MyMqttService.publishToServer(jObj, "APGOV");
                     myDbHelp.updateTaskStatus(s, "sent");
-                } catch (MqttException e) {
+                } /*catch (MqttException e) {
                     e.printStackTrace();
-                } catch (JSONException e) {
+                } */ catch (JSONException e) {
+                    e.printStackTrace();
+                } catch (MqttException e) {
                     e.printStackTrace();
                 }
             }

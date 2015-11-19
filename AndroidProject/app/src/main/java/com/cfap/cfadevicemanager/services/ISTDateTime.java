@@ -48,9 +48,9 @@ public class ISTDateTime {
         }
         TimeZone tz = TimeZone.getDefault();
         // From TimeZone current
-        Log.i("Tel Frag", "getindiandate: TimeZone : " + tz.getID() + " - " + tz.getDisplayName());
-        Log.i("Tel Frag", "getindiandate: TimeZone : " + tz);
-        Log.i("Tel Frag", "getindiandate: Date : " + currformatter.format(rdate));
+     //   Log.i("Tel Frag", "getindiandate: TimeZone : " + tz.getID() + " - " + tz.getDisplayName());
+      //  Log.i("Tel Frag", "getindiandate: TimeZone : " + tz);
+       // Log.i("Tel Frag", "getindiandate: Date : " + currformatter.format(rdate));
 
         // To TimeZone Asia/Calcutta
         SimpleDateFormat sdfIndia = new SimpleDateFormat("dd-MM-yyyy hh:mm:ss a");
@@ -65,11 +65,10 @@ public class ISTDateTime {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }
-        Log.i("Tel Frag", "getindiandate: \nTimeZone : " + tzInIndia.getID() +
-                " - " + tzInIndia.getDisplayName());
-        Log.i("Tel Frag", "getindiandate: TimeZone : " + tzInIndia);
-        Log.i("Tel Frag", "getindiandate: Date (String) : " + sDateInIndia);
-        Log.i("Tel Frag", "getindiandate: Date (Object) : " + currformatter.format(dateInIndia));
+    //    Log.i("Tel Frag", "getindiandate: \nTimeZone : " + tzInIndia.getID() + " - " + tzInIndia.getDisplayName());
+    //    Log.i("Tel Frag", "getindiandate: TimeZone : " + tzInIndia);
+     //   Log.i("Tel Frag", "getindiandate: Date (String) : " + sDateInIndia);
+     //   Log.i("Tel Frag", "getindiandate: Date (Object) : " + currformatter.format(dateInIndia));
 
         return dateInIndia;
     }

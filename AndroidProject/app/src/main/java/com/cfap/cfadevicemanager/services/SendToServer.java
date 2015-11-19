@@ -30,7 +30,7 @@ public class SendToServer{
     private MqttClient mqttClient;
     private String topic;
 
-    public SendToServer(Context c, JSONObject json, String topic) throws MqttException{
+ /*   public SendToServer(Context c, JSONObject json, String topic) throws MqttException{
         context = c;
         this.topic = topic;
         myDbHelp = DatabaseHelper.getInstance(context);
@@ -50,5 +50,5 @@ public class SendToServer{
                 final byte[] b = message.getPayload();
          //   Log.e(TAG, "publishing...");
                 mqttClient.publish(topic, b, 2, false);
-    }
+    } */
 }

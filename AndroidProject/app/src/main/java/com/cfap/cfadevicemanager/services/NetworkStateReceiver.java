@@ -10,9 +10,15 @@ import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.cfap.cfadevicemanager.dbmodels.DatabaseHelper;
 import com.cfap.cfadevicemanager.GlobalState;
+
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 /**
  * This class continuously listens for network connection. If we are connected to the internet, it sets the global
@@ -34,10 +40,13 @@ public class NetworkStateReceiver extends BroadcastReceiver {
         if(intent.getExtras()!=null) {
             NetworkInfo ni=(NetworkInfo) intent.getExtras().get(ConnectivityManager.EXTRA_NETWORK_INFO);
             if(ni!=null && ni.getState()==NetworkInfo.State.CONNECTED) {
-                Log.e(TAG,"Network "+ni.getTypeName()+" connected");
+                Log.e(TAG, "Network " + ni.getTypeName() + " connected");
                 gs.setConnStatus("true");
                 Log.e(TAG, "no of pending tasks: "+myDbHelp.getPendingJsons().size());
                 if(myDbHelp.getPendingJsons().size()>0) new FetchFromDatabase(context, "myimei");
+                Intent serviceIntent = new Intent(context, MyMqttService.class);
+                serviceIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.startService(serviceIntent);
             }
         }
         if(intent.getExtras().getBoolean(ConnectivityManager.EXTRA_NO_CONNECTIVITY, Boolean.FALSE)) {

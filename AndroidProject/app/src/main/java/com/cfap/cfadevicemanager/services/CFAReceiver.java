@@ -31,6 +31,11 @@ public class CFAReceiver extends BroadcastReceiver{
                 service1.setAction("com.cfap.CUSTOM_INTENT");
                 context.sendBroadcast(service1);
                 Log.e(TAG, "type is Foreground");
+            } else if(type.equals("MqttService")){
+                Intent serviceIntent = new Intent(context, MyMqttService.class);
+              //  serviceIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                context.sendBroadcast(serviceIntent);
+                Log.e(TAG, "type is Mqtt");
             }
         }
     }
